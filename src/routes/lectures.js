@@ -6,14 +6,23 @@ const router = express.Router();
 const lectureController = require('../controllers/lectureController');
 const { auth } = require('../middleware/auth');
 const { requireLecturer, requireCourseInstructor } = require('../middleware/roleCheck');
-const { validateQuery, validateParams } = require('../middleware/validation');
-const { commonSchemas } = require('../middleware/validation');
+const { validate, validateQuery, validateParams, validateBody } = require('../middleware/validation');
+const { commonSchemas, lectureSchemas } = require('../middleware/validation');
 
-// Lecture Management Routes
+// ================================
+// LECTURE MANAGEMENT ROUTES
+// ================================
+
 router.get('/',
     auth,
-    validateQuery(commonSchemas.pagination),
+    validateQuery(lectureSchemas.lecturePagination),
     lectureController.getLectures
+);
+
+router.get('/my-lectures',
+    auth,
+    validateQuery(lectureSchemas.myLecturesPagination),
+    lectureController.getMyLectures
 );
 
 router.get('/:id',
@@ -25,6 +34,7 @@ router.get('/:id',
 router.post('/',
     auth,
     requireLecturer,
+    validate(lectureSchemas.createLecture),
     lectureController.createLecture
 );
 
@@ -32,6 +42,7 @@ router.put('/:id',
     auth,
     requireLecturer,
     validateParams(commonSchemas.id),
+    validate(lectureSchemas.updateLecture),
     lectureController.updateLecture
 );
 
@@ -48,10 +59,32 @@ router.get('/:id/attachments',
     lectureController.getLectureAttachments
 );
 
-// Chapter Management Routes
+// ================================
+// LECTURE PERMISSIONS ROUTES
+// ================================
+
+router.get('/:id/permissions',
+    auth,
+    requireLecturer,
+    validateParams(commonSchemas.id),
+    lectureController.getLecturePermissions
+);
+
+router.put('/:id/permissions',
+    auth,
+    requireLecturer,
+    validateParams(commonSchemas.id),
+    validate(lectureSchemas.lecturePermissions),
+    lectureController.updateLecturePermissions
+);
+
+// ================================
+// CHAPTER MANAGEMENT ROUTES
+// ================================
+
 router.get('/chapters',
     auth,
-    validateQuery(commonSchemas.pagination),
+    validateQuery(lectureSchemas.chapterPagination),
     lectureController.getChapters
 );
 
@@ -64,6 +97,7 @@ router.get('/chapters/:id',
 router.post('/chapters',
     auth,
     requireLecturer,
+    validate(lectureSchemas.createChapter),
     lectureController.createChapter
 );
 
@@ -71,6 +105,7 @@ router.put('/chapters/:id',
     auth,
     requireLecturer,
     validateParams(commonSchemas.id),
+    validate(lectureSchemas.updateChapter),
     lectureController.updateChapter
 );
 
@@ -84,27 +119,8 @@ router.delete('/chapters/:id',
 router.get('/chapters/:id/lectures',
     auth,
     validateParams(commonSchemas.id),
+    validateQuery(commonSchemas.pagination),
     lectureController.getChapterLectures
-);
-
-// Permissions & Access Routes
-router.get('/:id/permissions',
-    auth,
-    requireLecturer,
-    validateParams(commonSchemas.id),
-    lectureController.getLecturePermissions
-);
-
-router.put('/:id/permissions',
-    auth,
-    requireLecturer,
-    validateParams(commonSchemas.id),
-    lectureController.updateLecturePermissions
-);
-
-router.get('/my-lectures',
-    auth,
-    lectureController.getMyLectures
 );
 
 module.exports = router;

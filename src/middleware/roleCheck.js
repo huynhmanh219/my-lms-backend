@@ -2,6 +2,7 @@
 // Checks user roles and permissions
 
 const { AppError } = require('./errorHandler');
+const { CourseSection, StudentCourseSection } = require('../models');
 
 // Check if user has required role
 const requireRole = (roles) => {
@@ -13,15 +14,8 @@ const requireRole = (roles) => {
         // Convert single role to array
         const allowedRoles = Array.isArray(roles) ? roles : [roles];
         
-        // TODO: Implement proper role checking when models are ready
-        // const userRole = req.user.role_name || req.user.role;
-        
-        // if (!allowedRoles.includes(userRole)) {
-        //     return next(new AppError('Insufficient permissions', 403));
-        // }
-
-        // Temporary role check (remove when models are implemented)
-        if (!req.user.role || !allowedRoles.includes(req.user.role)) {
+        // Check if user has one of the required roles
+        if (!allowedRoles.includes(req.user.role)) {
             return res.status(403).json({
                 status: 'error',
                 message: 'Insufficient permissions'
@@ -88,20 +82,30 @@ const requireCourseInstructor = async (req, res, next) => {
             return next();
         }
 
-        // TODO: Implement course instructor check when models are ready
-        // const courseId = req.params.courseId || req.params.id;
-        // const course = await Course.findByPk(courseId);
-        // 
-        // if (!course || course.instructor_id !== req.user.id) {
-        //     return next(new AppError('Access denied', 403));
-        // }
-
-        // Temporary implementation
+        // Only lecturers can be course instructors
         if (req.user.role !== 'lecturer') {
             return res.status(403).json({
                 status: 'error',
-                message: 'Only course instructors can perform this action'
+                message: 'Only lecturers can perform this action'
             });
+        }
+
+        // Check if lecturer is instructor of the course
+        const courseId = req.params.courseId || req.params.id;
+        if (courseId) {
+            const course = await CourseSection.findOne({
+                where: { 
+                    id: courseId,
+                    lecturer_id: req.user.id 
+                }
+            });
+
+            if (!course) {
+                return res.status(403).json({
+                    status: 'error',
+                    message: 'You are not the instructor of this course'
+                });
+            }
         }
 
         next();
@@ -122,18 +126,50 @@ const requireCourseEnrollment = async (req, res, next) => {
             return next();
         }
 
-        // TODO: Implement enrollment check when models are ready
-        // const courseId = req.params.courseId || req.params.id;
-        // const enrollment = await Enrollment.findOne({
-        //     where: {
-        //         student_id: req.user.id,
-        //         course_id: courseId
-        //     }
-        // });
-        // 
-        // if (!enrollment) {
-        //     return next(new AppError('Not enrolled in this course', 403));
-        // }
+        // Check if student is enrolled in the course
+        const courseId = req.params.courseId || req.params.id;
+        if (courseId && req.user.role === 'student') {
+            const enrollment = await StudentCourseSection.findOne({
+                where: {
+                    student_id: req.user.id,
+                    course_section_id: courseId
+                }
+            });
+
+            if (!enrollment) {
+                return res.status(403).json({
+                    status: 'error',
+                    message: 'You are not enrolled in this course'
+                });
+            }
+        }
+
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Check if user can access their own data or is admin/lecturer
+const requireSelfOrElevated = async (req, res, next) => {
+    try {
+        if (!req.user) {
+            return next(new AppError('Authentication required', 401));
+        }
+
+        // Admin and lecturers can access everything
+        if (['admin', 'lecturer'].includes(req.user.role)) {
+            return next();
+        }
+
+        // Students can only access their own data
+        const targetUserId = req.params.userId || req.params.id;
+        if (req.user.role === 'student' && req.user.id !== parseInt(targetUserId)) {
+            return res.status(403).json({
+                status: 'error',
+                message: 'You can only access your own data'
+            });
+        }
 
         next();
     } catch (error) {
@@ -148,5 +184,6 @@ module.exports = {
     requireStudent,
     requireOwnershipOrAdmin,
     requireCourseInstructor,
-    requireCourseEnrollment
+    requireCourseEnrollment,
+    requireSelfOrElevated
 }; 

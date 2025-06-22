@@ -1,158 +1,1019 @@
 // Course Controller
 // Handles course management operations: subjects, classes, enrollment
 
+const { Subject, CourseSection, StudentCourseSection, Account, Student, Lecturer, Role } = require('../models');
+const paginationService = require('../services/paginationService');
+const { ValidationError, NotFoundError } = require('../middleware/errorHandler');
+const { Op } = require('sequelize');
+const sequelize = require('../config/database');
+
 const courseController = {
-    // Subject Management (6 APIs)
+    // ==========================================
+    // SUBJECT MANAGEMENT (6 APIs)
+    // ==========================================
+
+    // GET /courses - Get subjects with pagination
     getCourses: async (req, res, next) => {
         try {
-            // TODO: Implement get subjects with pagination
-            res.status(200).json({ message: 'Get courses endpoint - to be implemented' });
+            const { page = 1, limit = 10, search, lecturer_id, department, sort = 'created_at', order = 'desc' } = req.query;
+
+            // Build search conditions
+            const whereConditions = {};
+
+            if (search) {
+                whereConditions[Op.or] = [
+                    { subject_name: { [Op.like]: `%${search}%` } },
+                    { description: { [Op.like]: `%${search}%` } },
+                    { subject_code: { [Op.like]: `%${search}%` } }
+                ];
+            }
+
+            if (lecturer_id) {
+                whereConditions.lecturer_id = lecturer_id;
+            }
+
+            if (department) {
+                whereConditions.department = { [Op.like]: `%${department}%` };
+            }
+
+            // Get paginated results
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            const { count, rows } = await Subject.findAndCountAll({
+                where: whereConditions,
+                include: [
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        include: [
+                            {
+                                model: Account,
+                                as: 'account',
+                                attributes: ['email']
+                            }
+                        ],
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ],
+                limit: queryLimit,
+                offset,
+                order: [[sort, order.toUpperCase()]],
+                distinct: true
+            });
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Courses retrieved successfully',
+                data: {
+                    courses: rows,
+                    pagination
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // GET /courses/:id - Get single course
     getCourse: async (req, res, next) => {
         try {
-            // TODO: Implement get single course
-            res.status(200).json({ message: 'Get course endpoint - to be implemented' });
+            const { id } = req.params;
+
+            const course = await Subject.findByPk(id, {
+                include: [
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        include: [
+                            {
+                                model: Account,
+                                as: 'account',
+                                attributes: ['email']
+                            }
+                        ],
+                        attributes: ['id', 'first_name', 'last_name', 'title', 'department']
+                    },
+                    {
+                        model: CourseSection,
+                        as: 'courseSections',
+                        attributes: ['id', 'section_name', 'max_students', 'start_date', 'end_date', 'schedule']
+                    }
+                ]
+            });
+
+            if (!course) {
+                throw new NotFoundError('Course not found');
+            }
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Course retrieved successfully',
+                data: {
+                    course
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // POST /courses - Create subject
     createCourse: async (req, res, next) => {
         try {
-            // TODO: Implement create subject
-            res.status(201).json({ message: 'Create course endpoint - to be implemented' });
+            const { 
+                subject_name, 
+                description, 
+                subject_code, 
+                lecturer_id, 
+                credits, 
+                semester,
+                academic_year 
+            } = req.body;
+
+            // Verify lecturer exists
+            const lecturer = await Lecturer.findByPk(lecturer_id);
+            if (!lecturer) {
+                throw new ValidationError('Lecturer not found');
+            }
+
+            // Check if course code already exists
+            const existingCourse = await Subject.findOne({ where: { subject_code } });
+            if (existingCourse) {
+                throw new ValidationError('Course code already exists');
+            }
+
+            const course = await Subject.create({
+                subject_name,
+                description,
+                subject_code,
+                lecturer_id,
+                credits,
+                semester,
+                academic_year
+            });
+
+            // Fetch created course with lecturer info
+            const createdCourse = await Subject.findByPk(course.id, {
+                include: [
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ]
+            });
+
+            res.status(201).json({
+                status: 'success',
+                message: 'Course created successfully',
+                data: {
+                    course: createdCourse
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // PUT /courses/:id - Update course
     updateCourse: async (req, res, next) => {
         try {
-            // TODO: Implement update course
-            res.status(200).json({ message: 'Update course endpoint - to be implemented' });
+            const { id } = req.params;
+            const { 
+                subject_name, 
+                description, 
+                subject_code, 
+                lecturer_id, 
+                credits, 
+                semester,
+                academic_year 
+            } = req.body;
+
+            const course = await Subject.findByPk(id);
+            if (!course) {
+                throw new NotFoundError('Course not found');
+            }
+
+            // Verify lecturer exists if changing
+            if (lecturer_id && lecturer_id !== course.lecturer_id) {
+                const lecturer = await Lecturer.findByPk(lecturer_id);
+                if (!lecturer) {
+                    throw new ValidationError('Lecturer not found');
+                }
+            }
+
+            // Check if course code already exists (if changing)
+            if (subject_code && subject_code !== course.subject_code) {
+                const existingCourse = await Subject.findOne({ where: { subject_code } });
+                if (existingCourse) {
+                    throw new ValidationError('Course code already exists');
+                }
+            }
+
+            await course.update({
+                subject_name: subject_name || course.subject_name,
+                description: description || course.description,
+                subject_code: subject_code || course.subject_code,
+                lecturer_id: lecturer_id || course.lecturer_id,
+                credits: credits !== undefined ? credits : course.credits,
+                semester: semester || course.semester,
+                academic_year: academic_year || course.academic_year
+            });
+
+            // Fetch updated course with lecturer info
+            const updatedCourse = await Subject.findByPk(id, {
+                include: [
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ]
+            });
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Course updated successfully',
+                data: {
+                    course: updatedCourse
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // DELETE /courses/:id - Delete course
     deleteCourse: async (req, res, next) => {
         try {
-            // TODO: Implement delete course
-            res.status(200).json({ message: 'Delete course endpoint - to be implemented' });
+            const { id } = req.params;
+
+            const course = await Subject.findByPk(id);
+            if (!course) {
+                throw new NotFoundError('Course not found');
+            }
+
+            // Check if course has active course sections
+            const activeSections = await CourseSection.findAll({ where: { subject_id: id } });
+            if (activeSections.length > 0) {
+                throw new ValidationError('Cannot delete course with active sections. Please remove sections first.');
+            }
+
+            await course.destroy();
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Course deleted successfully'
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // GET /courses/:id/students - Get students enrolled in course (across all sections)
     getCourseStudents: async (req, res, next) => {
         try {
-            // TODO: Implement get students in a course
-            res.status(200).json({ message: 'Get course students endpoint - to be implemented' });
+            const { id } = req.params;
+            const { page = 1, limit = 10 } = req.query;
+
+            const course = await Subject.findByPk(id);
+            if (!course) {
+                throw new NotFoundError('Course not found');
+            }
+
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            // Get students enrolled in any section of this course
+            const { count, rows } = await Student.findAndCountAll({
+                include: [
+                    {
+                        model: StudentCourseSection,
+                        as: 'enrollments',
+                        required: true,
+                        include: [
+                            {
+                                model: CourseSection,
+                                as: 'courseSection',
+                                where: { subject_id: id },
+                                attributes: ['id', 'section_name']
+                            }
+                        ]
+                    },
+                    {
+                        model: Account,
+                        as: 'account',
+                        attributes: ['email']
+                    }
+                ],
+                limit: queryLimit,
+                offset,
+                distinct: true
+            });
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Course students retrieved successfully',
+                data: {
+                    course: { id: course.id, subject_name: course.subject_name },
+                    students: rows,
+                    pagination
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
-    // Class Management (5 APIs)
+    // ==========================================
+    // CLASS MANAGEMENT (5 APIs)
+    // ==========================================
+
+    // GET /classes - Get course sections
     getClasses: async (req, res, next) => {
         try {
-            // TODO: Implement get course sections
-            res.status(200).json({ message: 'Get classes endpoint - to be implemented' });
+            const { page = 1, limit = 10, search, subject_id, lecturer_id, sort = 'created_at', order = 'desc' } = req.query;
+
+            // Build search conditions
+            const whereConditions = {};
+
+            if (search) {
+                whereConditions[Op.or] = [
+                    { section_name: { [Op.like]: `%${search}%` } },
+                    { schedule: { [Op.like]: `%${search}%` } }
+                ];
+            }
+
+            if (subject_id) {
+                whereConditions.subject_id = subject_id;
+            }
+
+            if (lecturer_id) {
+                whereConditions.lecturer_id = lecturer_id;
+            }
+
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            const { count, rows } = await CourseSection.findAndCountAll({
+                where: whereConditions,
+                include: [
+                    {
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'subject_name', 'subject_code', 'credits']
+                    },
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ],
+                limit: queryLimit,
+                offset,
+                order: [[sort, order.toUpperCase()]],
+                distinct: true
+            });
+
+            // Add enrollment count for each class
+            const classesWithCount = await Promise.all(rows.map(async (cls) => {
+                const enrollmentCount = await StudentCourseSection.count({
+                    where: { course_section_id: cls.id }
+                });
+                return {
+                    ...cls.toJSON(),
+                    enrollmentCount
+                };
+            }));
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Classes retrieved successfully',
+                data: {
+                    classes: classesWithCount,
+                    pagination
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // GET /classes/:id - Get single class
     getClass: async (req, res, next) => {
         try {
-            // TODO: Implement get single class
-            res.status(200).json({ message: 'Get class endpoint - to be implemented' });
+            const { id } = req.params;
+
+            const courseSection = await CourseSection.findByPk(id, {
+                include: [
+                    {
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'subject_name', 'subject_code', 'credits', 'description']
+                    },
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        include: [
+                            {
+                                model: Account,
+                                as: 'account',
+                                attributes: ['email']
+                            }
+                        ],
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ]
+            });
+
+            if (!courseSection) {
+                throw new NotFoundError('Class not found');
+            }
+
+            // Get enrollment count
+            const enrollmentCount = await StudentCourseSection.count({
+                where: { course_section_id: id }
+            });
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Class retrieved successfully',
+                data: {
+                    class: {
+                        ...courseSection.toJSON(),
+                        enrollmentCount
+                    }
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // POST /classes - Create class
     createClass: async (req, res, next) => {
         try {
-            // TODO: Implement create class
-            res.status(201).json({ message: 'Create class endpoint - to be implemented' });
+            const { 
+                subject_id, 
+                lecturer_id, 
+                section_name, 
+                max_students, 
+                start_date, 
+                end_date, 
+                schedule,
+                room 
+            } = req.body;
+
+            // Verify subject exists
+            const subject = await Subject.findByPk(subject_id);
+            if (!subject) {
+                throw new ValidationError('Subject not found');
+            }
+
+            // Verify lecturer exists
+            const lecturer = await Lecturer.findByPk(lecturer_id);
+            if (!lecturer) {
+                throw new ValidationError('Lecturer not found');
+            }
+
+            // Check if section name already exists for this subject
+            const existingSection = await CourseSection.findOne({
+                where: { subject_id, section_name }
+            });
+            if (existingSection) {
+                throw new ValidationError('Section name already exists for this subject');
+            }
+
+            const courseSection = await CourseSection.create({
+                subject_id,
+                lecturer_id,
+                section_name,
+                max_students,
+                start_date,
+                end_date,
+                schedule,
+                room
+            });
+
+            // Fetch created class with related data
+            const createdClass = await CourseSection.findByPk(courseSection.id, {
+                include: [
+                    {
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'subject_name', 'subject_code']
+                    },
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ]
+            });
+
+            res.status(201).json({
+                status: 'success',
+                message: 'Class created successfully',
+                data: {
+                    class: createdClass
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // PUT /classes/:id - Update class
     updateClass: async (req, res, next) => {
         try {
-            // TODO: Implement update class
-            res.status(200).json({ message: 'Update class endpoint - to be implemented' });
+            const { id } = req.params;
+            const { 
+                lecturer_id, 
+                section_name, 
+                max_students, 
+                start_date, 
+                end_date, 
+                schedule,
+                room 
+            } = req.body;
+
+            const courseSection = await CourseSection.findByPk(id);
+            if (!courseSection) {
+                throw new NotFoundError('Class not found');
+            }
+
+            // Verify lecturer exists if changing
+            if (lecturer_id && lecturer_id !== courseSection.lecturer_id) {
+                const lecturer = await Lecturer.findByPk(lecturer_id);
+                if (!lecturer) {
+                    throw new ValidationError('Lecturer not found');
+                }
+            }
+
+            // Check capacity constraint
+            if (max_students !== undefined) {
+                const enrollmentCount = await StudentCourseSection.count({
+                    where: { course_section_id: id }
+                });
+                if (max_students < enrollmentCount) {
+                    throw new ValidationError(`Cannot reduce capacity below current enrollment count (${enrollmentCount})`);
+                }
+            }
+
+            await courseSection.update({
+                lecturer_id: lecturer_id || courseSection.lecturer_id,
+                section_name: section_name || courseSection.section_name,
+                max_students: max_students !== undefined ? max_students : courseSection.max_students,
+                start_date: start_date || courseSection.start_date,
+                end_date: end_date || courseSection.end_date,
+                schedule: schedule || courseSection.schedule,
+                room: room || courseSection.room
+            });
+
+            // Fetch updated class with related data
+            const updatedClass = await CourseSection.findByPk(id, {
+                include: [
+                    {
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'subject_name', 'subject_code']
+                    },
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ]
+            });
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Class updated successfully',
+                data: {
+                    class: updatedClass
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // DELETE /classes/:id - Delete class
     deleteClass: async (req, res, next) => {
         try {
-            // TODO: Implement delete class
-            res.status(200).json({ message: 'Delete class endpoint - to be implemented' });
+            const { id } = req.params;
+
+            const courseSection = await CourseSection.findByPk(id);
+            if (!courseSection) {
+                throw new NotFoundError('Class not found');
+            }
+
+            // Check if class has enrolled students
+            const enrollmentCount = await StudentCourseSection.count({
+                where: { course_section_id: id }
+            });
+            if (enrollmentCount > 0) {
+                throw new ValidationError('Cannot delete class with enrolled students. Please remove enrollments first.');
+            }
+
+            await courseSection.destroy();
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Class deleted successfully'
+            });
         } catch (error) {
             next(error);
         }
     },
 
-    // Enrollment Management (7 APIs)
+    // ==========================================
+    // ENROLLMENT MANAGEMENT (7 APIs)
+    // ==========================================
+
+    // GET /classes/:id/students - Get students in a class
     getClassStudents: async (req, res, next) => {
         try {
-            // TODO: Implement get students in a class
-            res.status(200).json({ message: 'Get class students endpoint - to be implemented' });
+            const { id } = req.params;
+            const { page = 1, limit = 10 } = req.query;
+
+            const courseSection = await CourseSection.findByPk(id);
+            if (!courseSection) {
+                throw new NotFoundError('Class not found');
+            }
+
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            const { count, rows } = await Student.findAndCountAll({
+                include: [
+                    {
+                        model: StudentCourseSection,
+                        as: 'enrollments',
+                        where: { course_section_id: id },
+                        attributes: ['enrollment_date', 'status']
+                    },
+                    {
+                        model: Account,
+                        as: 'account',
+                        attributes: ['email', 'is_active']
+                    }
+                ],
+                limit: queryLimit,
+                offset,
+                distinct: true
+            });
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Class students retrieved successfully',
+                data: {
+                    class: { id: courseSection.id, section_name: courseSection.section_name },
+                    students: rows,
+                    pagination
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // POST /classes/:id/students - Enroll students to class
     enrollStudents: async (req, res, next) => {
+        const transaction = await sequelize.transaction();
+        
         try {
-            // TODO: Implement enroll students to class
-            res.status(200).json({ message: 'Enroll students endpoint - to be implemented' });
+            const { id } = req.params;
+            const { student_ids } = req.body;
+
+            if (!Array.isArray(student_ids) || student_ids.length === 0) {
+                throw new ValidationError('student_ids must be a non-empty array');
+            }
+
+            const courseSection = await CourseSection.findByPk(id);
+            if (!courseSection) {
+                throw new NotFoundError('Class not found');
+            }
+
+            // Check capacity
+            const currentEnrollment = await StudentCourseSection.count({
+                where: { course_section_id: id }
+            });
+
+            if (currentEnrollment + student_ids.length > courseSection.max_students) {
+                throw new ValidationError(`Enrollment would exceed class capacity (${courseSection.max_students})`);
+            }
+
+            const results = {
+                successful: [],
+                failed: []
+            };
+
+            for (const student_id of student_ids) {
+                try {
+                    // Check if student exists
+                    const student = await Student.findByPk(student_id);
+                    if (!student) {
+                        results.failed.push({ student_id, error: 'Student not found' });
+                        continue;
+                    }
+
+                    // Check if already enrolled
+                    const existingEnrollment = await StudentCourseSection.findOne({
+                        where: { student_id, course_section_id: id }
+                    });
+                    if (existingEnrollment) {
+                        results.failed.push({ student_id, error: 'Already enrolled' });
+                        continue;
+                    }
+
+                    // Enroll student
+                    await StudentCourseSection.create({
+                        student_id,
+                        course_section_id: id,
+                        enrollment_date: new Date(),
+                        status: 'active'
+                    }, { transaction });
+
+                    results.successful.push({ student_id, status: 'enrolled' });
+                } catch (error) {
+                    results.failed.push({ student_id, error: error.message });
+                }
+            }
+
+            await transaction.commit();
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Enrollment process completed',
+                data: {
+                    results,
+                    summary: {
+                        total: student_ids.length,
+                        successful: results.successful.length,
+                        failed: results.failed.length
+                    }
+                }
+            });
         } catch (error) {
+            await transaction.rollback();
             next(error);
         }
     },
 
+    // DELETE /classes/:id/students/:studentId - Remove student from class
     removeStudentFromClass: async (req, res, next) => {
         try {
-            // TODO: Implement remove student from class
-            res.status(200).json({ message: 'Remove student from class endpoint - to be implemented' });
+            const { id, studentId } = req.params;
+
+            const enrollment = await StudentCourseSection.findOne({
+                where: { course_section_id: id, student_id: studentId }
+            });
+
+            if (!enrollment) {
+                throw new NotFoundError('Enrollment not found');
+            }
+
+            await enrollment.destroy();
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Student removed from class successfully'
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // GET /students/:id/classes - Get classes of a student
     getStudentClasses: async (req, res, next) => {
         try {
-            // TODO: Implement get classes of a student
-            res.status(200).json({ message: 'Get student classes endpoint - to be implemented' });
+            const { id } = req.params;
+            const { page = 1, limit = 10, status } = req.query;
+
+            const student = await Student.findByPk(id);
+            if (!student) {
+                throw new NotFoundError('Student not found');
+            }
+
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            const whereConditions = { student_id: id };
+            if (status) {
+                whereConditions.status = status;
+            }
+
+            const { count, rows } = await StudentCourseSection.findAndCountAll({
+                where: whereConditions,
+                include: [
+                    {
+                        model: CourseSection,
+                        as: 'courseSection',
+                        include: [
+                            {
+                                model: Subject,
+                                as: 'subject',
+                                attributes: ['id', 'subject_name', 'subject_code', 'credits']
+                            },
+                            {
+                                model: Lecturer,
+                                as: 'lecturer',
+                                attributes: ['id', 'first_name', 'last_name', 'title']
+                            }
+                        ]
+                    }
+                ],
+                limit: queryLimit,
+                offset,
+                order: [['enrollment_date', 'DESC']],
+                distinct: true
+            });
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Student classes retrieved successfully',
+                data: {
+                    student: { id: student.id, first_name: student.first_name, last_name: student.last_name },
+                    enrollments: rows,
+                    pagination
+                }
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // POST /enrollment/bulk - Bulk enrollment
     bulkEnrollment: async (req, res, next) => {
+        const transaction = await sequelize.transaction();
+        
         try {
-            // TODO: Implement bulk enrollment
-            res.status(200).json({ message: 'Bulk enrollment endpoint - to be implemented' });
+            const { enrollments } = req.body;
+
+            if (!Array.isArray(enrollments) || enrollments.length === 0) {
+                throw new ValidationError('enrollments must be a non-empty array');
+            }
+
+            const results = {
+                successful: [],
+                failed: []
+            };
+
+            for (const enrollment of enrollments) {
+                try {
+                    const { student_id, course_section_id } = enrollment;
+
+                    // Validate required fields
+                    if (!student_id || !course_section_id) {
+                        results.failed.push({ 
+                            enrollment, 
+                            error: 'student_id and course_section_id are required' 
+                        });
+                        continue;
+                    }
+
+                    // Check if student and course section exist
+                    const student = await Student.findByPk(student_id);
+                    const courseSection = await CourseSection.findByPk(course_section_id);
+
+                    if (!student) {
+                        results.failed.push({ enrollment, error: 'Student not found' });
+                        continue;
+                    }
+
+                    if (!courseSection) {
+                        results.failed.push({ enrollment, error: 'Course section not found' });
+                        continue;
+                    }
+
+                    // Check capacity
+                    const currentEnrollment = await StudentCourseSection.count({
+                        where: { course_section_id }
+                    });
+
+                    if (currentEnrollment >= courseSection.max_students) {
+                        results.failed.push({ enrollment, error: 'Class is at capacity' });
+                        continue;
+                    }
+
+                    // Check if already enrolled
+                    const existingEnrollment = await StudentCourseSection.findOne({
+                        where: { student_id, course_section_id }
+                    });
+
+                    if (existingEnrollment) {
+                        results.failed.push({ enrollment, error: 'Already enrolled' });
+                        continue;
+                    }
+
+                    // Create enrollment
+                    await StudentCourseSection.create({
+                        student_id,
+                        course_section_id,
+                        enrollment_date: new Date(),
+                        status: 'active'
+                    }, { transaction });
+
+                    results.successful.push({ enrollment, status: 'enrolled' });
+                } catch (error) {
+                    results.failed.push({ enrollment, error: error.message });
+                }
+            }
+
+            await transaction.commit();
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Bulk enrollment completed',
+                data: {
+                    results,
+                    summary: {
+                        total: enrollments.length,
+                        successful: results.successful.length,
+                        failed: results.failed.length
+                    }
+                }
+            });
         } catch (error) {
+            await transaction.rollback();
             next(error);
         }
     },
 
+    // GET /enrollment/export - Export enrollment data
     exportEnrollment: async (req, res, next) => {
         try {
-            // TODO: Implement export enrollment data
-            res.status(200).json({ message: 'Export enrollment endpoint - to be implemented' });
+            const { course_section_id, subject_id, format = 'json' } = req.query;
+
+            const whereConditions = {};
+            const includeConditions = [
+                {
+                    model: Student,
+                    as: 'student',
+                    include: [
+                        {
+                            model: Account,
+                            as: 'account',
+                            attributes: ['email']
+                        }
+                    ],
+                    attributes: ['id', 'student_id', 'first_name', 'last_name']
+                },
+                {
+                    model: CourseSection,
+                    as: 'courseSection',
+                    include: [
+                        {
+                            model: Subject,
+                            as: 'subject',
+                            attributes: ['id', 'subject_name', 'subject_code']
+                        }
+                    ],
+                    attributes: ['id', 'section_name']
+                }
+            ];
+
+            if (course_section_id) {
+                whereConditions.course_section_id = course_section_id;
+            }
+
+            if (subject_id) {
+                includeConditions[1].where = { subject_id };
+            }
+
+            const enrollments = await StudentCourseSection.findAll({
+                where: whereConditions,
+                include: includeConditions,
+                order: [['enrollment_date', 'ASC']]
+            });
+
+            const exportData = enrollments.map(enrollment => ({
+                'Student ID': enrollment.student.student_id,
+                'Student Name': `${enrollment.student.first_name} ${enrollment.student.last_name}`,
+                'Email': enrollment.student.account.email,
+                'Course Code': enrollment.courseSection.subject.subject_code,
+                'Course Name': enrollment.courseSection.subject.subject_name,
+                'Section': enrollment.courseSection.section_name,
+                'Enrollment Date': enrollment.enrollment_date,
+                'Status': enrollment.status
+            }));
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Enrollment data exported successfully',
+                data: {
+                    enrollments: exportData,
+                    count: exportData.length,
+                    exported_at: new Date()
+                }
+            });
         } catch (error) {
             next(error);
         }

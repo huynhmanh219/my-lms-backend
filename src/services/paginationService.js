@@ -18,6 +18,38 @@ const paginationService = {
         };
     },
 
+    // Get offset and limit for pagination (used by user controller)
+    getOffsetLimit: (page, limit) => {
+        const pageNum = parseInt(page) || 1;
+        const limitNum = Math.min(parseInt(limit) || 10, 100);
+        const offset = (pageNum - 1) * limitNum;
+        
+        return {
+            offset,
+            limit: limitNum
+        };
+    },
+
+    // Get pagination data (used by user controller)
+    getPaginationData: (totalCount, page, limit) => {
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 10;
+        const totalPages = Math.ceil(totalCount / limitNum);
+        const hasNextPage = pageNum < totalPages;
+        const hasPrevPage = pageNum > 1;
+        
+        return {
+            page: pageNum,
+            limit: limitNum,
+            totalCount,
+            totalPages,
+            hasNextPage,
+            hasPrevPage,
+            nextPage: hasNextPage ? pageNum + 1 : null,
+            prevPage: hasPrevPage ? pageNum - 1 : null
+        };
+    },
+
     // Create pagination metadata
     createPaginationMeta: (totalCount, page, limit) => {
         const totalPages = Math.ceil(totalCount / limit);

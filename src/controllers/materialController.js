@@ -1,95 +1,515 @@
 // Material Controller
-// Handles learning material management operations: CRUD, file operations, search
+// Handles learning material management operations: CRUD, file operations, search & sharing
+
+const { LearningMaterial, Subject, Chapter, Lecturer, sequelize } = require('../models');
+const { Op } = require('sequelize');
+const { getPagination, getPagingData } = require('../services/paginationService');
+const fileService = require('../services/fileService');
+const path = require('path');
+const fs = require('fs').promises;
 
 const materialController = {
-    // Material CRUD (4 APIs)
+    // ================================
+    // MATERIAL CRUD (6 APIs)
+    // ================================
+
+    // GET /materials - Get all materials with advanced filtering
     getMaterials: async (req, res, next) => {
         try {
-            // TODO: Implement get materials with advanced filtering
-            res.status(200).json({ message: 'Get materials endpoint - to be implemented' });
+            const { page = 1, size = 10, search, subject_id, chapter_id, material_type, is_public } = req.query;
+            const { limit, offset } = getPagination(page, size);
+
+            const whereConditions = {};
+            
+            if (search) {
+                whereConditions[Op.or] = [
+                    { title: { [Op.like]: `%${search}%` } },
+                    { description: { [Op.like]: `%${search}%` } }
+                ];
+            }
+
+            if (subject_id) whereConditions.subject_id = subject_id;
+            if (chapter_id) whereConditions.chapter_id = chapter_id;
+            if (material_type) whereConditions.material_type = material_type;
+            if (is_public !== undefined) whereConditions.is_public = is_public === 'true';
+
+            const materials = await LearningMaterial.findAndCountAll({
+                where: whereConditions,
+                include: [
+                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name', 'email'] }
+                ],
+                limit,
+                offset,
+                order: [['created_at', 'DESC']],
+                distinct: true
+            });
+
+            const response = getPagingData(materials, page, limit);
+            response.items = response.items.map(material => {
+                const data = material.toJSON();
+                data.file_size_formatted = material.getFileSizeFormatted();
+                return data;
+            });
+
+            res.status(200).json({
+                success: true,
+                message: 'Materials retrieved successfully',
+                data: response
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // GET /materials/:id - Get single material
+    getMaterial: async (req, res, next) => {
+        try {
+            const { id } = req.params;
+
+            const material = await LearningMaterial.findByPk(id, {
+                include: [
+                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name', 'email'] }
+                ]
+            });
+
+            if (!material) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Material not found'
+                });
+            }
+
+            const materialData = material.toJSON();
+            materialData.file_size_formatted = material.getFileSizeFormatted();
+
+            res.status(200).json({
+                success: true,
+                message: 'Material retrieved successfully',
+                data: materialData
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // POST /materials - Create new material
     createMaterial: async (req, res, next) => {
         try {
-            // TODO: Implement create material
-            res.status(201).json({ message: 'Create material endpoint - to be implemented' });
+            const {
+                title,
+                description,
+                subject_id,
+                chapter_id,
+                material_type = 'document',
+                is_public = false
+            } = req.body;
+
+            const userId = req.user.id;
+            const lecturer = await Lecturer.findOne({ where: { account_id: userId } });
+            
+            if (!lecturer) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Only lecturers can create materials'
+                });
+            }
+
+            const material = await LearningMaterial.create({
+                title,
+                description,
+                subject_id,
+                chapter_id,
+                material_type,
+                uploaded_by: lecturer.id,
+                is_public
+            });
+
+            const createdMaterial = await LearningMaterial.findByPk(material.id, {
+                include: [
+                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] }
+                ]
+            });
+
+            res.status(201).json({
+                success: true,
+                message: 'Material created successfully',
+                data: createdMaterial
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // PUT /materials/:id - Update material
     updateMaterial: async (req, res, next) => {
         try {
-            // TODO: Implement update material
-            res.status(200).json({ message: 'Update material endpoint - to be implemented' });
+            const { id } = req.params;
+            const { title, description, material_type, is_public } = req.body;
+
+            const material = await LearningMaterial.findByPk(id);
+            if (!material) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Material not found'
+                });
+            }
+
+            await material.update({
+                title: title || material.title,
+                description: description !== undefined ? description : material.description,
+                material_type: material_type || material.material_type,
+                is_public: is_public !== undefined ? is_public : material.is_public
+            });
+
+            const updatedMaterial = await LearningMaterial.findByPk(id, {
+                include: [
+                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] }
+                ]
+            });
+
+            res.status(200).json({
+                success: true,
+                message: 'Material updated successfully',
+                data: updatedMaterial
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // DELETE /materials/:id - Delete material
     deleteMaterial: async (req, res, next) => {
         try {
-            // TODO: Implement delete material
-            res.status(200).json({ message: 'Delete material endpoint - to be implemented' });
+            const { id } = req.params;
+
+            const material = await LearningMaterial.findByPk(id);
+            if (!material) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Material not found'
+                });
+            }
+
+            // Delete associated file if exists
+            if (material.file_path) {
+                try {
+                    await fileService.deleteFile(material.file_path);
+                } catch (error) {
+                    console.error('Error deleting file:', error);
+                }
+            }
+
+            await material.destroy();
+
+            res.status(200).json({
+                success: true,
+                message: 'Material deleted successfully'
+            });
         } catch (error) {
             next(error);
         }
     },
 
-    // File Operations (3 APIs)
+    // GET /materials/:id/details - Get material with full details
+    getMaterialDetails: async (req, res, next) => {
+        try {
+            const { id } = req.params;
+
+            const material = await LearningMaterial.findByPk(id, {
+                include: [
+                    { 
+                        model: Subject, 
+                        as: 'subject', 
+                        attributes: ['id', 'name', 'code', 'description'],
+                        include: [{ model: Lecturer, as: 'lecturer', attributes: ['id', 'name'] }]
+                    },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title', 'description'] },
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name', 'email'] }
+                ]
+            });
+
+            if (!material) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Material not found'
+                });
+            }
+
+            const materialData = material.toJSON();
+            materialData.file_size_formatted = material.getFileSizeFormatted();
+            materialData.has_file = material.hasFile();
+
+            res.status(200).json({
+                success: true,
+                message: 'Material details retrieved successfully',
+                data: materialData
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // ================================
+    // FILE OPERATIONS (7 APIs)
+    // ================================
+
+    // POST /materials/upload - Upload single file
     uploadMaterial: async (req, res, next) => {
         try {
-            // TODO: Implement upload material file
-            res.status(201).json({ message: 'Upload material endpoint - to be implemented' });
+            if (!req.file) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No file uploaded'
+                });
+            }
+
+            const {
+                title,
+                description,
+                subject_id,
+                chapter_id,
+                material_type = 'document',
+                is_public = false
+            } = req.body;
+
+            const userId = req.user.id;
+            const lecturer = await Lecturer.findOne({ where: { account_id: userId } });
+
+            const material = await LearningMaterial.create({
+                title: title || req.file.originalname,
+                description,
+                file_path: req.file.path,
+                file_name: req.file.originalname,
+                file_size: req.file.size,
+                mime_type: req.file.mimetype,
+                subject_id,
+                chapter_id,
+                material_type,
+                uploaded_by: lecturer.id,
+                is_public
+            });
+
+            const createdMaterial = await LearningMaterial.findByPk(material.id, {
+                include: [
+                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] }
+                ]
+            });
+
+            res.status(201).json({
+                success: true,
+                message: 'Material uploaded successfully',
+                data: createdMaterial
+            });
         } catch (error) {
             next(error);
         }
     },
 
+    // GET /materials/:id/download - Download material file
     downloadMaterial: async (req, res, next) => {
         try {
-            // TODO: Implement download material file
-            res.status(200).json({ message: 'Download material endpoint - to be implemented' });
+            const { id } = req.params;
+
+            const material = await LearningMaterial.findByPk(id);
+            if (!material) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Material not found'
+                });
+            }
+
+            if (!material.file_path) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No file associated with this material'
+                });
+            }
+
+            const fileExists = await fileService.fileExists(material.file_path);
+            if (!fileExists) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'File not found on server'
+                });
+            }
+
+            const headers = fileService.createDownloadHeaders(
+                material.file_name || `material_${material.id}`,
+                material.mime_type
+            );
+
+            res.set(headers);
+            res.sendFile(path.resolve(material.file_path));
         } catch (error) {
             next(error);
         }
     },
 
+    // POST /materials/upload-multiple - Upload multiple files
     uploadMultipleMaterials: async (req, res, next) => {
         try {
-            // TODO: Implement upload multiple material files
-            res.status(201).json({ message: 'Upload multiple materials endpoint - to be implemented' });
+            if (!req.files || req.files.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No files uploaded'
+                });
+            }
+
+            const { subject_id, chapter_id, is_public = false } = req.body;
+            const userId = req.user.id;
+            const lecturer = await Lecturer.findOne({ where: { account_id: userId } });
+
+            const materials = [];
+            for (const file of req.files) {
+                const material = await LearningMaterial.create({
+                    title: file.originalname,
+                    file_path: file.path,
+                    file_name: file.originalname,
+                    file_size: file.size,
+                    mime_type: file.mimetype,
+                    subject_id,
+                    chapter_id,
+                    material_type: 'document',
+                    uploaded_by: lecturer.id,
+                    is_public
+                });
+                materials.push(material);
+            }
+
+            res.status(201).json({
+                success: true,
+                message: `${materials.length} materials uploaded successfully`,
+                data: materials
+            });
         } catch (error) {
             next(error);
         }
     },
 
-    // Search & Discovery (3 APIs)
+    // ================================
+    // SEARCH & DISCOVERY (6 APIs)
+    // ================================
+
+    // GET /materials/search - Full-text search
     searchMaterials: async (req, res, next) => {
         try {
-            // TODO: Implement full-text search for materials
-            res.status(200).json({ message: 'Search materials endpoint - to be implemented' });
+            const { query, page = 1, size = 10 } = req.query;
+            const { limit, offset } = getPagination(page, size);
+
+            if (!query) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Search query is required'
+                });
+            }
+
+            const materials = await LearningMaterial.findAndCountAll({
+                where: {
+                    [Op.or]: [
+                        { title: { [Op.like]: `%${query}%` } },
+                        { description: { [Op.like]: `%${query}%` } },
+                        { file_name: { [Op.like]: `%${query}%` } }
+                    ]
+                },
+                include: [
+                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name'] }
+                ],
+                limit,
+                offset,
+                order: [['created_at', 'DESC']],
+                distinct: true
+            });
+
+            const response = getPagingData(materials, page, limit);
+            res.status(200).json({
+                success: true,
+                message: 'Search completed successfully',
+                data: response,
+                query
+            });
         } catch (error) {
             next(error);
         }
     },
 
-    filterMaterials: async (req, res, next) => {
-        try {
-            // TODO: Implement filter materials
-            res.status(200).json({ message: 'Filter materials endpoint - to be implemented' });
-        } catch (error) {
-            next(error);
-        }
-    },
-
+    // GET /materials/recent - Get recent materials
     getRecentMaterials: async (req, res, next) => {
         try {
-            // TODO: Implement get recent materials
-            res.status(200).json({ message: 'Get recent materials endpoint - to be implemented' });
+            const { page = 1, size = 10, days = 7 } = req.query;
+            const { limit, offset } = getPagination(page, size);
+
+            const dateThreshold = new Date();
+            dateThreshold.setDate(dateThreshold.getDate() - parseInt(days));
+
+            const materials = await LearningMaterial.findAndCountAll({
+                where: {
+                    created_at: {
+                        [Op.gte]: dateThreshold
+                    }
+                },
+                include: [
+                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name'] }
+                ],
+                limit,
+                offset,
+                order: [['created_at', 'DESC']],
+                distinct: true
+            });
+
+            const response = getPagingData(materials, page, limit);
+            res.status(200).json({
+                success: true,
+                message: 'Recent materials retrieved successfully',
+                data: response
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // GET /materials/by-type - Filter by material type
+    getMaterialsByType: async (req, res, next) => {
+        try {
+            const { type, page = 1, size = 10 } = req.query;
+            const { limit, offset } = getPagination(page, size);
+
+            if (!type) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Material type is required'
+                });
+            }
+
+            const materials = await LearningMaterial.findAndCountAll({
+                where: { material_type: type },
+                include: [
+                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name'] }
+                ],
+                limit,
+                offset,
+                order: [['created_at', 'DESC']],
+                distinct: true
+            });
+
+            const response = getPagingData(materials, page, limit);
+            res.status(200).json({
+                success: true,
+                message: `Materials of type '${type}' retrieved successfully`,
+                data: response
+            });
         } catch (error) {
             next(error);
         }

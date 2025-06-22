@@ -14,12 +14,12 @@ const StudentCourseSection = require('./StudentCourseSection');
 const Chapter = require('./Chapter');
 const Lecture = require('./Lecture');
 const LearningMaterial = require('./LearningMaterial');
-// Quiz models will be added in Phase 8
-// const Quiz = require('./Quiz');
-// const Question = require('./Question');
-// const Answer = require('./Answer');
-// const Submission = require('./Submission');
-// const Response = require('./Response');
+// Quiz models - Phase 8
+const Quiz = require('./Quiz');
+const Question = require('./Question');
+const Answer = require('./Answer');
+const Submission = require('./Submission');
+const Response = require('./Response');
 
 // Define model associations
 const defineAssociations = () => {
@@ -84,15 +84,55 @@ const defineAssociations = () => {
     Lecturer.hasMany(LearningMaterial, { foreignKey: 'uploaded_by', as: 'uploadedMaterials' });
     LearningMaterial.belongsTo(Lecturer, { foreignKey: 'uploaded_by', as: 'uploader' });
 
-    // Quiz associations will be added in Phase 8
-    // Subject.hasMany(Quiz, { foreignKey: 'subject_id', as: 'quizzes' });
-    // Quiz.belongsTo(Subject, { foreignKey: 'subject_id', as: 'subject' });
+    // ================================
+    // QUIZ ASSOCIATIONS - Phase 8
+    // ================================
     
-    // CourseSection.hasMany(Quiz, { foreignKey: 'course_section_id', as: 'quizzes' });
-    // Quiz.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
+    // Quiz associations
+    Subject.hasMany(Quiz, { foreignKey: 'subject_id', as: 'quizzes' });
+    Quiz.belongsTo(Subject, { foreignKey: 'subject_id', as: 'subject' });
     
-    // Lecturer.hasMany(Quiz, { foreignKey: 'lecturer_id', as: 'quizzes' });
-    // Quiz.belongsTo(Lecturer, { foreignKey: 'lecturer_id', as: 'lecturer' });
+    CourseSection.hasMany(Quiz, { foreignKey: 'course_section_id', as: 'quizzes' });
+    Quiz.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
+    
+    Lecturer.hasMany(Quiz, { foreignKey: 'lecturer_id', as: 'quizzes' });
+    Quiz.belongsTo(Lecturer, { foreignKey: 'lecturer_id', as: 'lecturer' });
+
+    // Quiz - Question associations
+    Quiz.hasMany(Question, { foreignKey: 'quiz_id', as: 'questions', onDelete: 'CASCADE' });
+    Question.belongsTo(Quiz, { foreignKey: 'quiz_id', as: 'quiz' });
+
+    // Question - Answer associations
+    Question.hasMany(Answer, { foreignKey: 'question_id', as: 'answers', onDelete: 'CASCADE' });
+    Answer.belongsTo(Question, { foreignKey: 'question_id', as: 'question' });
+
+    // Quiz - Submission associations
+    Quiz.hasMany(Submission, { foreignKey: 'quiz_id', as: 'submissions' });
+    Submission.belongsTo(Quiz, { foreignKey: 'quiz_id', as: 'quiz' });
+
+    // Student - Submission associations
+    Student.hasMany(Submission, { foreignKey: 'student_id', as: 'submissions' });
+    Submission.belongsTo(Student, { foreignKey: 'student_id', as: 'student' });
+
+    // Lecturer - Submission associations (graded_by)
+    Lecturer.hasMany(Submission, { foreignKey: 'graded_by', as: 'gradedSubmissions' });
+    Submission.belongsTo(Lecturer, { foreignKey: 'graded_by', as: 'grader' });
+
+    // Submission - Response associations
+    Submission.hasMany(Response, { foreignKey: 'submission_id', as: 'responses', onDelete: 'CASCADE' });
+    Response.belongsTo(Submission, { foreignKey: 'submission_id', as: 'submission' });
+
+    // Question - Response associations
+    Question.hasMany(Response, { foreignKey: 'question_id', as: 'responses' });
+    Response.belongsTo(Question, { foreignKey: 'question_id', as: 'question' });
+
+    // Answer - Response associations
+    Answer.hasMany(Response, { foreignKey: 'answer_id', as: 'responses' });
+    Response.belongsTo(Answer, { foreignKey: 'answer_id', as: 'selectedAnswer' });
+
+    // Lecturer - Response associations (graded_by)
+    Lecturer.hasMany(Response, { foreignKey: 'graded_by', as: 'gradedResponses' });
+    Response.belongsTo(Lecturer, { foreignKey: 'graded_by', as: 'grader' });
 };
 
 // Initialize associations
@@ -110,11 +150,11 @@ module.exports = {
     StudentCourseSection,
     Chapter,
     Lecture,
-    LearningMaterial
-    // Quiz models will be added in Phase 8:
-    // Quiz,
-    // Question,
-    // Answer,
-    // Submission,
-    // Response
+    LearningMaterial,
+    // Quiz models - Phase 8
+    Quiz,
+    Question,
+    Answer,
+    Submission,
+    Response
 }; 
