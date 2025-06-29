@@ -90,6 +90,114 @@ const seedDatabase = async () => {
         });
         console.log('✅ Lecturer account created (lecturer@lms.com / lecturer123)');
 
+        // Create additional sample teachers
+        console.log('👨‍🏫 Creating additional sample teachers...');
+        const additionalTeachers = [
+            {
+                email: 'nguyen.van.a@lms.com',
+                password: 'teacher123',
+                first_name: 'Nguyễn Văn',
+                last_name: 'A',
+                title: 'Associate Professor',
+                department: 'Mathematics',
+                bio: 'Chuyên gia về Toán cao cấp và Giải tích',
+                phone: '0901234567'
+            },
+            {
+                email: 'tran.thi.b@lms.com',
+                password: 'teacher123',
+                first_name: 'Trần Thị',
+                last_name: 'B',
+                title: 'Lecturer',
+                department: 'Physics',
+                bio: 'Giảng viên Vật lý và Cơ học',
+                phone: '0902345678'
+            },
+            {
+                email: 'le.hoang.c@lms.com',
+                password: 'teacher123',
+                first_name: 'Lê Hoàng',
+                last_name: 'C',
+                title: 'Professor',
+                department: 'Chemistry',
+                bio: 'Tiến sĩ Hóa học, chuyên gia về Hóa hữu cơ',
+                phone: '0903456789'
+            },
+            {
+                email: 'pham.minh.d@lms.com',
+                password: 'teacher123',
+                first_name: 'Phạm Minh',
+                last_name: 'D',
+                title: 'Assistant Professor',
+                department: 'Computer Science',
+                bio: 'Chuyên gia về AI và Machine Learning',
+                phone: '0904567890'
+            },
+            {
+                email: 'vo.thu.e@lms.com',
+                password: 'teacher123',
+                first_name: 'Võ Thu',
+                last_name: 'E',
+                title: 'Lecturer',
+                department: 'English Literature',
+                bio: 'Thạc sĩ Ngữ văn Anh, giảng viên Văn học',
+                phone: '0905678901'
+            },
+            {
+                email: 'dao.van.f@lms.com',
+                password: 'teacher123',
+                first_name: 'Đào Văn',
+                last_name: 'F',
+                title: 'Associate Professor',
+                department: 'Economics',
+                bio: 'Tiến sĩ Kinh tế, chuyên gia về Tài chính',
+                phone: '0906789012'
+            },
+            {
+                email: 'bui.thi.g@lms.com',
+                password: 'teacher123',
+                first_name: 'Bùi Thị',
+                last_name: 'G',
+                title: 'Professor',
+                department: 'Biology',
+                bio: 'Giáo sư Sinh học, nghiên cứu về Di truyền học',
+                phone: '0907890123'
+            },
+            {
+                email: 'hoang.van.h@lms.com',
+                password: 'teacher123',
+                first_name: 'Hoàng Văn',
+                last_name: 'H',
+                title: 'Lecturer',
+                department: 'History',
+                bio: 'Thạc sĩ Lịch sử, chuyên về Lịch sử Việt Nam',
+                phone: '0908901234'
+            }
+        ];
+
+        // Create accounts and lecturer profiles for additional teachers
+        for (const teacherData of additionalTeachers) {
+            const teacherAccount = await Account.create({
+                email: teacherData.email,
+                password: teacherData.password,
+                role_id: lecturerRole.id,
+                is_active: true,
+                email_verified: true
+            });
+
+            await Lecturer.create({
+                account_id: teacherAccount.id,
+                first_name: teacherData.first_name,
+                last_name: teacherData.last_name,
+                title: teacherData.title,
+                department: teacherData.department,
+                bio: teacherData.bio,
+                phone: teacherData.phone,
+                status: 'active'
+            });
+        }
+        console.log(`✅ Created ${additionalTeachers.length} additional teachers`);
+
         // Create sample student account
         console.log('👨‍🎓 Creating sample student account...');
         const studentRole = await Role.findOne({ where: { name: 'student' } });

@@ -6,9 +6,12 @@ const slowDown = require('express-slow-down');
 const { logSecurity } = require('../services/loggerService');
 
 // Enhanced general API rate limit with logging
+// Use more generous limits in development
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: isDevelopment ? 10000 : 100, // 1000 for dev, 100 for production
     message: {
         status: 'error',
         message: 'Too many requests from this IP, please try again later.',
@@ -29,15 +32,19 @@ const generalLimiter = rateLimit({
         });
     },
     skip: (req) => {
-        // Skip rate limiting for health checks
-        return req.path === '/health';
+        // Skip rate limiting for health checks and optionally for localhost in dev
+        if (req.path === '/health') return true;
+        if (isDevelopment && (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip.includes('192.168'))) {
+            return true; // Skip rate limiting for local IPs in development
+        }
+        return false;
     }
 });
 
 // Strict rate limit for authentication endpoints
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 requests per windowMs
+    max: isDevelopment ? 50 : 5, // 50 for dev, 5 for production
     message: {
         status: 'error',
         message: 'Too many authentication attempts, please try again later.',
@@ -57,6 +64,13 @@ const authLimiter = rateLimit({
             message: 'Too many authentication attempts, please try again later.',
             code: 'AUTH_LIMIT_EXCEEDED'
         });
+    },
+    skip: (req) => {
+        // Skip auth rate limiting for local IPs in development
+        if (isDevelopment && (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip.includes('192.168'))) {
+            return true;
+        }
+        return false;
     }
 });
 

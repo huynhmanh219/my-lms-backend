@@ -112,15 +112,15 @@ router.get('/students/:id',
 // POST /users/students - Create student (account + student profile)
 router.post('/students',
     auth,
-    requireAdmin, // Only admins can create student accounts
-    validate(userSchemas.createStudent),
+    requireLecturer, // Lecturers and admins can create student accounts
+    validate(userSchemas.createStudent), // RE-ENABLED
     userController.createStudent
 );
 
 // PUT /users/students/:id - Update student
 router.put('/students/:id',
     auth,
-    requireAdmin, // Only admins can update student accounts
+    requireLecturer, // Lecturers and admins can update student accounts
     validateParams(commonSchemas.id),
     validate(userSchemas.updateStudent),
     userController.updateStudent

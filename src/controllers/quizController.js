@@ -3,7 +3,7 @@
 
 const { Quiz, Question, Answer, Submission, Response, Subject, CourseSection, Lecturer, Student, sequelize } = require('../models');
 const { Op } = require('sequelize');
-const { getPagination, getPagingData } = require('../services/paginationService');
+const { getOffsetLimit, getPaginationData, getPagingData } = require('../services/paginationService');
 
 const quizController = {
     // ================================
@@ -14,7 +14,7 @@ const quizController = {
     getQuizzes: async (req, res, next) => {
         try {
             const { page = 1, size = 10, search, subject_id, status, lecturer_id } = req.query;
-            const { limit, offset } = getPagination(page, size);
+            const { limit, offset } = getOffsetLimit(page, size);
 
             const whereConditions = {};
             
@@ -32,9 +32,9 @@ const quizController = {
             const quizzes = await Quiz.findAndCountAll({
                 where: whereConditions,
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: CourseSection, as: 'courseSection', attributes: ['id', 'section_name'] },
-                    { model: Lecturer, as: 'lecturer', attributes: ['id', 'name', 'email'] }
+                    { model: Lecturer, as: 'lecturer', attributes: ['id', 'first_name', 'last_name'] }
                 ],
                 limit,
                 offset,
@@ -61,9 +61,9 @@ const quizController = {
 
             const quiz = await Quiz.findByPk(id, {
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code', 'description'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code', 'description'] },
                     { model: CourseSection, as: 'courseSection', attributes: ['id', 'section_name'] },
-                    { model: Lecturer, as: 'lecturer', attributes: ['id', 'name', 'email'] },
+                    { model: Lecturer, as: 'lecturer', attributes: ['id', 'first_name', 'last_name'] },
                     { 
                         model: Question, 
                         as: 'questions', 
@@ -157,7 +157,7 @@ const quizController = {
 
             const createdQuiz = await Quiz.findByPk(quiz.id, {
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: CourseSection, as: 'courseSection', attributes: ['id', 'section_name'] }
                 ]
             });
@@ -201,7 +201,7 @@ const quizController = {
 
             const updatedQuiz = await Quiz.findByPk(id, {
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: CourseSection, as: 'courseSection', attributes: ['id', 'section_name'] }
                 ]
             });
@@ -790,7 +790,7 @@ const quizController = {
 
             const quiz = await Quiz.findByPk(id, {
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { 
                         model: Question, 
                         as: 'questions',
@@ -1235,7 +1235,7 @@ const quizController = {
         try {
             const { id } = req.params;
             const { page = 1, size = 10 } = req.query;
-            const { limit, offset } = getPagination(page, size);
+            const { limit, offset } = getOffsetLimit(page, size);
 
             const quiz = await Quiz.findByPk(id);
             if (!quiz) {
@@ -1262,7 +1262,7 @@ const quizController = {
             const response = getPagingData(submissions, page, limit);
 
             // Add formatted data
-            response.items = response.items.map(submission => {
+            response.data = response.data.map(submission => {
                 const data = submission.toJSON();
                 data.time_spent_formatted = submission.getTimeSpentFormatted();
                 data.grade = submission.getGrade();
@@ -1366,7 +1366,7 @@ const quizController = {
     getMyAttempts: async (req, res, next) => {
         try {
             const { page = 1, size = 10, status } = req.query;
-            const { limit, offset } = getPagination(page, size);
+            const { limit, offset } = getOffsetLimit(page, size);
             const userId = req.user.id;
 
             const student = await Student.findOne({ where: { account_id: userId } });
@@ -1393,7 +1393,7 @@ const quizController = {
                             {
                                 model: Subject,
                                 as: 'subject',
-                                attributes: ['id', 'name', 'code']
+                                attributes: ['id', 'subject_name', 'subject_code']
                             }
                         ]
                     }
@@ -1405,7 +1405,7 @@ const quizController = {
 
             const response = getPagingData(submissions, page, limit);
 
-            response.items = response.items.map(submission => {
+            response.data = response.data.map(submission => {
                 const data = submission.toJSON();
                 data.time_spent_formatted = submission.getTimeSpentFormatted();
                 data.grade = submission.getGrade();
@@ -1526,7 +1526,7 @@ const quizController = {
         try {
             const { id } = req.params;
             const { page = 1, size = 10 } = req.query;
-            const { limit, offset } = getPagination(page, size);
+            const { limit, offset } = getOffsetLimit(page, size);
 
             const student = await Student.findByPk(id);
             if (!student) {
@@ -1547,7 +1547,7 @@ const quizController = {
                             {
                                 model: Subject,
                                 as: 'subject',
-                                attributes: ['id', 'name', 'code']
+                                attributes: ['id', 'subject_name', 'subject_code']
                             }
                         ]
                     }
@@ -1559,7 +1559,7 @@ const quizController = {
 
             const response = getPagingData(submissions, page, limit);
 
-            response.items = response.items.map(submission => {
+            response.data = response.data.map(submission => {
                 const data = submission.toJSON();
                 data.time_spent_formatted = submission.getTimeSpentFormatted();
                 data.grade = submission.getGrade();

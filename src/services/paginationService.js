@@ -18,6 +18,18 @@ const paginationService = {
         };
     },
 
+    // COMPATIBILITY: Old API name for getOffsetLimit
+    getPagination: (page, limit) => {
+        const pageNum = parseInt(page) || 1;
+        const limitNum = Math.min(parseInt(limit) || 10, 100);
+        const offset = (pageNum - 1) * limitNum;
+        
+        return {
+            offset,
+            limit: limitNum
+        };
+    },
+
     // Get offset and limit for pagination (used by user controller)
     getOffsetLimit: (page, limit) => {
         const pageNum = parseInt(page) || 1;
@@ -27,6 +39,27 @@ const paginationService = {
         return {
             offset,
             limit: limitNum
+        };
+    },
+
+    // COMPATIBILITY: Old API name for getPaginationData  
+    getPagingData: (result, page, limit) => {
+        const { count: totalCount, rows: data } = result;
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 10;
+        const totalPages = Math.ceil(totalCount / limitNum);
+        const hasNextPage = pageNum < totalPages;
+        const hasPrevPage = pageNum > 1;
+        
+        return {
+            totalItems: totalCount,
+            data,
+            totalPages,
+            currentPage: pageNum,
+            hasNextPage,
+            hasPrevPage,
+            nextPage: hasNextPage ? pageNum + 1 : null,
+            prevPage: hasPrevPage ? pageNum - 1 : null
         };
     },
 

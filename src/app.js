@@ -24,7 +24,7 @@ const { validateSecureInput } = require('./middleware/validation');
 const { requestLogger } = require('./services/loggerService');
 
 // Import Swagger documentation
-const { specs, swaggerUi, swaggerUiOptions } = require('./config/swagger');
+// const { specs, swaggerUi, swaggerUiOptions } = require('./config/swagger');  
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -74,7 +74,7 @@ app.use(securityHeaders);
 
 // CORS configuration
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173'],
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -133,6 +133,23 @@ app.get('/health', (req, res) => {
         version: process.env.npm_package_version || '1.0.0',
         uptime: Math.floor(process.uptime())
     });
+});
+
+// DEBUG: Log final request body before routes
+app.use('/api', (req, res, next) => {
+    if (req.method === 'POST' && req.url.includes('/users/students')) {
+        console.log('🔍 MIDDLEWARE DEBUG - Final request body before routes:');
+        console.log('URL:', req.url);
+        console.log('Body:', JSON.stringify(req.body, null, 2));
+        console.log('Body type:', typeof req.body);
+        if (req.body) {
+            Object.keys(req.body).forEach(key => {
+                console.log(`🔍 ${key}:`, JSON.stringify(req.body[key]), typeof req.body[key]);
+            });
+        }
+        console.log('🔍 END MIDDLEWARE DEBUG');
+    }
+    next();
 });
 
 // Security info endpoint (for development)

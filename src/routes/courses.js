@@ -1,5 +1,4 @@
-// Course Management Routes
-// Routes for managing subjects, classes, and enrollment
+
 
 const express = require('express');
 const router = express.Router();
@@ -9,30 +8,24 @@ const { requireAdmin, requireLecturer, requireSelfOrElevated, requireCourseInstr
 const { validate, validateQuery, validateParams } = require('../middleware/validation');
 const { commonSchemas, courseSchemas } = require('../middleware/validation');
 
-// ==========================================
-// ENROLLMENT MANAGEMENT ROUTES (7 APIs)
-// ==========================================
-// Put these first to avoid conflicts with parameterized routes
 
-// POST /enrollment/bulk - Bulk enrollment
+
+// POST /enrollment/bulk    
 router.post('/enrollment/bulk',
     auth,
-    requireAdmin, // Only admins can perform bulk enrollment
+    requireAdmin,
     validate(courseSchemas.bulkEnrollment),
     courseController.bulkEnrollment
 );
 
-// GET /enrollment/export - Export enrollment data
+// GET /enrollment/export
 router.get('/enrollment/export',
     auth,
-    requireAdmin, // Only admins can export enrollment data
+    requireAdmin,
     courseController.exportEnrollment
 );
 
-// ==========================================
-// CLASS MANAGEMENT ROUTES (5 APIs)
-// ==========================================
-// Put class routes before parameterized routes to avoid conflicts
+
 
 // GET /classes - Get course sections
 router.get('/classes',
@@ -45,7 +38,7 @@ router.get('/classes',
 // POST /classes - Create class
 router.post('/classes',
     auth,
-    requireAdmin, // Only admins can create classes
+    requireLecturer, // Lecturers and admins can create classes
     validate(courseSchemas.createClass),
     courseController.createClass
 );
@@ -61,7 +54,7 @@ router.get('/classes/:id',
 // PUT /classes/:id - Update class
 router.put('/classes/:id',
     auth,
-    requireAdmin, // Only admins can update classes (or class instructor)
+    requireCourseInstructor, // Class instructor or admin can update classes
     validateParams(commonSchemas.id),
     validate(courseSchemas.updateClass),
     courseController.updateClass
@@ -70,7 +63,7 @@ router.put('/classes/:id',
 // DELETE /classes/:id - Delete class
 router.delete('/classes/:id',
     auth,
-    requireAdmin, // Only admins can delete classes
+    requireCourseInstructor, // Class instructor or admin can delete classes
     validateParams(commonSchemas.id),
     courseController.deleteClass
 );
@@ -87,7 +80,7 @@ router.get('/classes/:id/students',
 // POST /classes/:id/students - Enroll students to class
 router.post('/classes/:id/students',
     auth,
-    requireAdmin, // Only admins can enroll students (or class instructor)
+    requireCourseInstructor, // Class instructor or admin can enroll students
     validateParams(commonSchemas.id),
     validate(courseSchemas.enrollStudents),
     courseController.enrollStudents
@@ -96,7 +89,7 @@ router.post('/classes/:id/students',
 // DELETE /classes/:id/students/:studentId - Remove student from class
 router.delete('/classes/:id/students/:studentId',
     auth,
-    requireAdmin, // Only admins can remove students (or class instructor)
+    requireCourseInstructor, // Class instructor or admin can remove students
     validateParams(courseSchemas.enrollmentParams),
     courseController.removeStudentFromClass
 );
@@ -110,9 +103,6 @@ router.get('/students/:id/classes',
     courseController.getStudentClasses
 );
 
-// ==========================================
-// SUBJECT MANAGEMENT ROUTES (6 APIs)
-// ==========================================
 
 // GET /courses - Get subjects with pagination
 router.get('/',
@@ -125,7 +115,7 @@ router.get('/',
 // POST /courses - Create subject
 router.post('/',
     auth,
-    requireAdmin, // Only admins can create subjects
+    requireLecturer, // Lecturers and admins can create subjects
     validate(courseSchemas.createCourse),
     courseController.createCourse
 );
@@ -141,7 +131,7 @@ router.get('/:id',
 // PUT /courses/:id - Update course
 router.put('/:id',
     auth,
-    requireAdmin, // Only admins can update courses (or course instructor)
+    requireCourseInstructor, // Course instructor or admin can update courses
     validateParams(commonSchemas.id),
     validate(courseSchemas.updateCourse),
     courseController.updateCourse
@@ -150,7 +140,7 @@ router.put('/:id',
 // DELETE /courses/:id - Delete course
 router.delete('/:id',
     auth,
-    requireAdmin, // Only admins can delete courses
+    requireCourseInstructor, // Course instructor or admin can delete courses
     validateParams(commonSchemas.id),
     courseController.deleteCourse
 );

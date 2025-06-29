@@ -206,8 +206,8 @@ const sanitizeInput = (req, res, next) => {
             req.body.email = sanitizeEmail(req.body.email);
         }
         
-        // Sanitize numeric IDs
-        ['id', 'user_id', 'student_id', 'lecturer_id', 'subject_id', 'course_id', 'chapter_id', 'quiz_id'].forEach(field => {
+        // Sanitize numeric IDs (but not student_id in body as it's a student code string)
+        ['id', 'user_id', 'lecturer_id', 'subject_id', 'course_id', 'chapter_id', 'quiz_id'].forEach(field => {
             if (req.body[field]) {
                 req.body[field] = sanitizeNumericId(req.body[field]);
             }

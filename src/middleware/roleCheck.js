@@ -93,19 +93,69 @@ const requireCourseInstructor = async (req, res, next) => {
         // Check if lecturer is instructor of the course
         const courseId = req.params.courseId || req.params.id;
         if (courseId) {
-            const course = await CourseSection.findOne({
-                where: { 
-                    id: courseId,
-                    lecturer_id: req.user.id 
-                }
+            // Debug logging
+            console.log('🔍 [requireCourseInstructor] Checking permissions for:', {
+                userId: req.user.id,
+                userRole: req.user.role,
+                courseId: courseId,
+                route: req.route?.path || 'unknown'
             });
-
-            if (!course) {
+            
+            // Check both Subject table (for course management) and CourseSection table (for class management)
+            let course = null;
+            
+            // Get lecturer_id for the current user (account_id -> lecturer_id mapping)
+            const { Subject, Lecturer } = require('../models');
+            const lecturer = await Lecturer.findOne({ where: { account_id: req.user.id } });
+            
+            if (!lecturer) {
+                console.log('🔍 No lecturer profile found for account_id:', req.user.id);
                 return res.status(403).json({
                     status: 'error',
-                    message: 'You are not the instructor of this course'
+                    message: 'Lecturer profile not found'
                 });
             }
+            
+            console.log('🔍 Found lecturer:', { account_id: req.user.id, lecturer_id: lecturer.id });
+            
+            // First try to find in Subject table (for /courses/:id routes)
+            course = await Subject.findOne({
+                where: { 
+                    id: courseId,
+                    lecturer_id: lecturer.id 
+                }
+            });
+            
+            console.log('🔍 Subject table check result:', course ? 'FOUND' : 'NOT FOUND');
+            
+            // If not found in Subject, try CourseSection table (for /classes/:id routes)
+            if (!course) {
+                course = await CourseSection.findOne({
+                    where: { 
+                        id: courseId,
+                        lecturer_id: lecturer.id 
+                    }
+                });
+                console.log('🔍 CourseSection table check result:', course ? 'FOUND' : 'NOT FOUND');
+            }
+
+            if (!course) {
+                // Additional debug: Check if course exists but with different lecturer
+                const existingCourse = await Subject.findByPk(courseId) || await CourseSection.findByPk(courseId);
+                console.log('🔍 Course exists but with different lecturer:', existingCourse ? {
+                    id: existingCourse.id,
+                    course_lecturer_id: existingCourse.lecturer_id,
+                    current_lecturer_id: lecturer.id,
+                    current_account_id: req.user.id
+                } : 'COURSE NOT FOUND');
+                
+                return res.status(403).json({
+                    status: 'error',
+                    message: 'Bạn không có quyền chỉnh sửa lớp học phần này. Chỉ giảng viên được phân công hoặc admin mới có thể thực hiện thao tác này.'
+                });
+            }
+            
+            console.log('✅ [requireCourseInstructor] Permission granted');
         }
 
         next();
