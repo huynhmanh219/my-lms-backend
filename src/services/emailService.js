@@ -1,10 +1,7 @@
-// Email Service
-// Email sending functionality
-
+    
 const nodemailer = require('nodemailer');
 
-// Email transporter configuration
-const createTransporter = () => {
+const createTransporter = () => {   
     return nodemailer.createTransporter({
         host: process.env.SMTP_HOST || 'localhost',
         port: process.env.SMTP_PORT || 587,
@@ -17,7 +14,6 @@ const createTransporter = () => {
 };
 
 const emailService = {
-    // Send welcome email
     sendWelcomeEmail: async (email, name) => {
         try {
             const transporter = createTransporter();
@@ -41,7 +37,6 @@ const emailService = {
         }
     },
 
-    // Send password reset email
     sendPasswordResetEmail: async (email, resetToken) => {
         try {
             const transporter = createTransporter();
@@ -69,7 +64,6 @@ const emailService = {
         }
     },
 
-    // Send email verification
     sendEmailVerification: async (email, verificationToken) => {
         try {
             const transporter = createTransporter();
@@ -95,7 +89,6 @@ const emailService = {
         }
     },
 
-    // Send quiz notification
     sendQuizNotification: async (email, quizTitle, dueDate) => {
         try {
             const transporter = createTransporter();

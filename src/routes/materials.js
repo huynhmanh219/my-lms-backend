@@ -1,5 +1,3 @@
-// Material Management Routes
-// Routes for managing learning materials, file operations, and search
 
 const express = require('express');
 const router = express.Router();
@@ -11,9 +9,44 @@ const { commonSchemas, materialSchemas } = require('../middleware/validation');
 const { uploadLimiter } = require('../middleware/rateLimiter');
 const upload = require('../config/multer');
 
-// ================================
-// MATERIAL CRUD ROUTES (6 APIs)
-// ================================
+
+
+router.get('/search',
+    auth,
+    validateQuery(materialSchemas.searchMaterials),
+    materialController.searchMaterials
+);
+
+router.get('/recent',
+    auth,
+    validateQuery(materialSchemas.recentMaterials),
+    materialController.getRecentMaterials
+);
+
+router.get('/by-type',
+    auth,
+    validateQuery(materialSchemas.materialsByType),
+    materialController.getMaterialsByType
+);
+
+
+router.post('/upload',
+    auth,
+    requireLecturer,
+    uploadLimiter,
+    upload.single('material'),
+    materialController.uploadMaterial
+);
+
+router.post('/upload-multiple',
+    auth,
+    requireLecturer,
+    uploadLimiter,
+    upload.array('materials', 10),
+    materialController.uploadMultipleMaterials
+);
+
+    
 
 router.get('/',
     auth,
@@ -55,52 +88,10 @@ router.get('/:id/details',
     materialController.getMaterialDetails
 );
 
-// ================================
-// FILE OPERATIONS ROUTES (7 APIs)
-// ================================
-
-router.post('/upload',
-    auth,
-    requireLecturer,
-    uploadLimiter,
-    upload.single('material'),
-    materialController.uploadMaterial
-);
-
 router.get('/:id/download',
     auth,
     validateParams(commonSchemas.id),
     materialController.downloadMaterial
-);
-
-router.post('/upload-multiple',
-    auth,
-    requireLecturer,
-    uploadLimiter,
-    upload.array('materials', 10),
-    materialController.uploadMultipleMaterials
-);
-
-// ================================
-// SEARCH & DISCOVERY ROUTES (6 APIs)
-// ================================
-
-router.get('/search',
-    auth,
-    validateQuery(materialSchemas.searchMaterials),
-    materialController.searchMaterials
-);
-
-router.get('/recent',
-    auth,
-    validateQuery(materialSchemas.recentMaterials),
-    materialController.getRecentMaterials
-);
-
-router.get('/by-type',
-    auth,
-    validateQuery(materialSchemas.materialsByType),
-    materialController.getMaterialsByType
 );
 
 module.exports = router;

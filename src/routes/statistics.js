@@ -1,5 +1,4 @@
-// Statistics & Reports Routes
-// Routes for dashboard analytics and learning reports
+
 
 const express = require('express');
 const router = express.Router();
@@ -7,7 +6,7 @@ const statisticsController = require('../controllers/statisticsController');
 const { auth } = require('../middleware/auth');
 const { requireLecturer, requireAdmin } = require('../middleware/roleCheck');
 
-// Dashboard Analytics Routes
+
 router.get('/dashboard',
     auth,
     statisticsController.getDashboardStats
@@ -37,7 +36,7 @@ router.get('/classes',
     statisticsController.getClassStats
 );
 
-// Learning Reports Routes
+
 router.get('/reports/student-progress',
     auth,
     requireLecturer,

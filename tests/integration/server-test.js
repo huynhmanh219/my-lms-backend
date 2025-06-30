@@ -2,7 +2,7 @@
 // This version runs without database connection for testing Express setup
 
 require('dotenv').config();
-const app = require('./src/app');
+const app = require('../../src/app');
 
 // Server configuration
 const PORT = process.env.PORT || 5000;

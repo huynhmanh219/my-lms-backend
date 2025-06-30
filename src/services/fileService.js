@@ -1,23 +1,18 @@
-// File Service
-// File upload, download, and management operations
 
 const fs = require('fs').promises;
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 const fileService = {
-    // Validate file type
     validateFileType: (file, allowedTypes) => {
         const fileExtension = path.extname(file.originalname).toLowerCase();
         return allowedTypes.includes(fileExtension);
     },
 
-    // Get file size in MB
     getFileSizeMB: (file) => {
         return (file.size / (1024 * 1024)).toFixed(2);
     },
 
-    // Generate unique filename
     generateUniqueFilename: (originalName) => {
         const extension = path.extname(originalName);
         const basename = path.basename(originalName, extension);
@@ -25,16 +20,13 @@ const fileService = {
         return `${basename}_${uniqueId}${extension}`;
     },
 
-    // Save file with metadata
     saveFileWithMetadata: async (file, uploadPath, metadata = {}) => {
         try {
             const uniqueFilename = fileService.generateUniqueFilename(file.originalname);
             const filePath = path.join(uploadPath, uniqueFilename);
             
-            // Ensure directory exists
             await fs.mkdir(uploadPath, { recursive: true });
             
-            // Move file to destination
             await fs.rename(file.path, filePath);
             
             return {
@@ -52,7 +44,6 @@ const fileService = {
         }
     },
 
-    // Delete file
     deleteFile: async (filePath) => {
         try {
             await fs.unlink(filePath);
@@ -65,7 +56,6 @@ const fileService = {
         }
     },
 
-    // Check if file exists
     fileExists: async (filePath) => {
         try {
             await fs.access(filePath);
@@ -75,7 +65,6 @@ const fileService = {
         }
     },
 
-    // Get file stats
     getFileStats: async (filePath) => {
         try {
             const stats = await fs.stat(filePath);
@@ -92,7 +81,6 @@ const fileService = {
         }
     },
 
-    // Create download response headers
     createDownloadHeaders: (filename, mimetype) => {
         return {
             'Content-Disposition': `attachment; filename="${filename}"`,
@@ -100,13 +88,11 @@ const fileService = {
         };
     },
 
-    // Validate file size
     validateFileSize: (file, maxSizeMB) => {
         const fileSizeMB = fileService.getFileSizeMB(file);
         return fileSizeMB <= maxSizeMB;
     },
-
-    // Clean up old files
+    
     cleanupOldFiles: async (directory, maxAgeHours = 24) => {
         try {
             const files = await fs.readdir(directory);

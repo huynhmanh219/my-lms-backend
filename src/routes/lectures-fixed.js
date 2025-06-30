@@ -1,4 +1,7 @@
-﻿
+// Lecture Management Routes
+// Routes for managing lectures, chapters, and permissions
+// IMPORTANT: Specific routes must be defined BEFORE dynamic routes to prevent conflicts
+
 const express = require('express');
 const router = express.Router();
 const lectureController = require('../controllers/lectureController');
@@ -7,7 +10,9 @@ const { requireLecturer, requireCourseInstructor } = require('../middleware/role
 const { validate, validateQuery, validateParams, validateBody } = require('../middleware/validation');
 const { commonSchemas, lectureSchemas } = require('../middleware/validation');
 
-
+// ================================
+// CHAPTER MANAGEMENT ROUTES (MUST be before dynamic routes!)
+// ================================
 
 router.get('/chapters',
     auth,
@@ -50,6 +55,9 @@ router.get('/chapters/:id/lectures',
     lectureController.getChapterLectures
 );
 
+// ================================
+// SPECIFIC LECTURE ROUTES (MUST be before /:id route!)
+// ================================
 
 router.get('/my-lectures',
     auth,
@@ -57,7 +65,9 @@ router.get('/my-lectures',
     lectureController.getMyLectures
 );
 
-
+// ================================
+// DYNAMIC LECTURE ROUTES (MUST be after specific routes!)
+// ================================
 
 router.get('/',
     auth,
@@ -99,6 +109,10 @@ router.get('/:id/attachments',
     lectureController.getLectureAttachments
 );
 
+// ================================
+// LECTURE PERMISSIONS ROUTES
+// ================================
+
 router.get('/:id/permissions',
     auth,
     requireLecturer,
@@ -114,4 +128,4 @@ router.put('/:id/permissions',
     lectureController.updateLecturePermissions
 );
 
-module.exports = router;
+module.exports = router; 

@@ -1,5 +1,3 @@
-// Quiz Attempt Routes
-// Routes for quiz attempt management (separate from quiz management)
 
 const express = require('express');
 const router = express.Router();
@@ -10,7 +8,6 @@ const { validateParams, validateQuery } = require('../middleware/validation');
 const { commonSchemas } = require('../middleware/validation');
 const { quizLimiter } = require('../middleware/rateLimiter');
 
-// Quiz Attempt System Routes
 router.post('/',
     auth,
     requireStudent,
@@ -44,7 +41,7 @@ router.get('/:id/progress',
     quizController.getQuizProgress
 );
 
-// Results Routes
+
 router.get('/:id/result',
     auth,
     validateParams(commonSchemas.id),

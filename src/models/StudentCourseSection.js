@@ -1,5 +1,3 @@
-// StudentCourseSection Model
-// Junction table for student enrollment in course sections
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -65,7 +63,6 @@ const StudentCourseSection = sequelize.define('StudentCourseSection', {
     ]
 });
 
-// Instance methods
 StudentCourseSection.prototype.isActive = function() {
     return this.status === 'enrolled';
 };

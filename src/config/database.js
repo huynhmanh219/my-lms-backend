@@ -1,5 +1,3 @@
-// MySQL Database Configuration
-// This file handles the database connection using Sequelize ORM
 
 const { Sequelize } = require('sequelize');
 require('dotenv').config();

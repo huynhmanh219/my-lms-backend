@@ -1,17 +1,16 @@
-// Logger Service
-// Structured logging with Winston for security and audit trails
+
 
 const winston = require('winston');
 const path = require('path');
 
-// Create logs directory if it doesn't exist
+
 const fs = require('fs');
 const logDir = path.join(__dirname, '../../logs');
 if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir, { recursive: true });
 }
 
-// Define log format
+
 const logFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
@@ -32,45 +31,45 @@ const logFormat = winston.format.combine(
     })
 );
 
-// Create Winston logger
+
 const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
     format: logFormat,
     defaultMeta: { service: 'lms-backend' },
     transports: [
-        // Write all logs with level 'error' and below to error.log
+
         new winston.transports.File({ 
             filename: path.join(logDir, 'error.log'), 
             level: 'error',
-            maxsize: 5242880, // 5MB
+            maxsize: 5242880,
             maxFiles: 5
         }),
         
-        // Write all logs with level 'info' and below to combined.log
+
         new winston.transports.File({ 
             filename: path.join(logDir, 'combined.log'),
-            maxsize: 5242880, // 5MB
+            maxsize: 5242880,
             maxFiles: 5
         }),
         
-        // Security events log
+
         new winston.transports.File({ 
             filename: path.join(logDir, 'security.log'),
             level: 'warn',
-            maxsize: 5242880, // 5MB
+            maxsize: 5242880,
             maxFiles: 10
         }),
         
-        // Audit trail log
+
         new winston.transports.File({ 
             filename: path.join(logDir, 'audit.log'),
-            maxsize: 5242880, // 5MB
+            maxsize: 5242880,
             maxFiles: 10
         })
     ]
 });
 
-// Add console transport for development
+
 if (process.env.NODE_ENV !== 'production') {
     logger.add(new winston.transports.Console({
         format: winston.format.combine(
@@ -80,9 +79,9 @@ if (process.env.NODE_ENV !== 'production') {
     }));
 }
 
-// Security logging functions
+
 const logSecurity = {
-    // Authentication events
+
     loginAttempt: (email, ip, userAgent, success = false) => {
         logger.warn('Login attempt', {
             event: 'LOGIN_ATTEMPT',
@@ -125,7 +124,7 @@ const logSecurity = {
         });
     },
     
-    // Security violations
+
     securityViolation: (type, ip, userAgent, details) => {
         logger.error('Security violation detected', {
             event: 'SECURITY_VIOLATION',
@@ -158,7 +157,7 @@ const logSecurity = {
         });
     },
     
-    // File operations
+
     fileUpload: (userId, filename, size, mimetype, ip) => {
         logger.info('File uploaded', {
             event: 'FILE_UPLOAD',
@@ -181,7 +180,7 @@ const logSecurity = {
         });
     },
     
-    // Permission violations
+
     accessDenied: (userId, resource, action, ip) => {
         logger.warn('Access denied', {
             event: 'ACCESS_DENIED',
@@ -194,9 +193,9 @@ const logSecurity = {
     }
 };
 
-// Audit logging functions
+
 const logAudit = {
-    // Data operations
+
     create: (userId, entity, entityId, data, ip) => {
         logger.info('Entity created', {
             event: 'CREATE',
@@ -232,7 +231,7 @@ const logAudit = {
         });
     },
     
-    // Quiz operations
+
     quizStart: (userId, quizId, ip) => {
         logger.info('Quiz started', {
             event: 'QUIZ_START',
@@ -255,7 +254,7 @@ const logAudit = {
         });
     },
     
-    // Administrative actions
+
     roleChange: (adminId, targetUserId, oldRole, newRole, ip) => {
         logger.warn('User role changed', {
             event: 'ROLE_CHANGE',
@@ -280,7 +279,7 @@ const logAudit = {
     }
 };
 
-// Application logging functions
+
 const logApp = {
     error: (message, error, userId = null, ip = null) => {
         logger.error(message, {
@@ -314,11 +313,11 @@ const logApp = {
     }
 };
 
-// Request logging middleware
+
 const requestLogger = (req, res, next) => {
     const startTime = Date.now();
     
-    // Log request
+
     logger.info('Request received', {
         method: req.method,
         url: req.originalUrl,
@@ -328,7 +327,7 @@ const requestLogger = (req, res, next) => {
         timestamp: new Date().toISOString()
     });
     
-    // Override res.json to log response
+        
     const originalJson = res.json;
     res.json = function(data) {
         const duration = Date.now() - startTime;

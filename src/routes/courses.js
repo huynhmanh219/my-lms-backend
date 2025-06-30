@@ -30,7 +30,7 @@ router.get('/enrollment/export',
 // GET /classes - Get course sections
 router.get('/classes',
     auth,
-    requireLecturer, // Lecturers and admins can view classes
+    requireLecturer,
     validateQuery(commonSchemas.classPagination),
     courseController.getClasses
 );
@@ -38,7 +38,7 @@ router.get('/classes',
 // POST /classes - Create class
 router.post('/classes',
     auth,
-    requireLecturer, // Lecturers and admins can create classes
+    requireLecturer,
     validate(courseSchemas.createClass),
     courseController.createClass
 );
@@ -46,7 +46,7 @@ router.post('/classes',
 // GET /classes/:id - Get single class
 router.get('/classes/:id',
     auth,
-    requireLecturer, // Lecturers and admins can view class details
+    requireLecturer,
     validateParams(commonSchemas.id),
     courseController.getClass
 );
@@ -54,7 +54,7 @@ router.get('/classes/:id',
 // PUT /classes/:id - Update class
 router.put('/classes/:id',
     auth,
-    requireCourseInstructor, // Class instructor or admin can update classes
+    requireCourseInstructor,
     validateParams(commonSchemas.id),
     validate(courseSchemas.updateClass),
     courseController.updateClass
@@ -63,7 +63,7 @@ router.put('/classes/:id',
 // DELETE /classes/:id - Delete class
 router.delete('/classes/:id',
     auth,
-    requireCourseInstructor, // Class instructor or admin can delete classes
+    requireCourseInstructor,
     validateParams(commonSchemas.id),
     courseController.deleteClass
 );
@@ -71,7 +71,7 @@ router.delete('/classes/:id',
 // GET /classes/:id/students - Get students in a class
 router.get('/classes/:id/students',
     auth,
-    requireLecturer, // Lecturers and admins can view class students
+    requireLecturer,
     validateParams(commonSchemas.id),
     validateQuery(commonSchemas.pagination),
     courseController.getClassStudents
@@ -80,7 +80,7 @@ router.get('/classes/:id/students',
 // POST /classes/:id/students - Enroll students to class
 router.post('/classes/:id/students',
     auth,
-    requireCourseInstructor, // Class instructor or admin can enroll students
+    requireCourseInstructor,
     validateParams(commonSchemas.id),
     validate(courseSchemas.enrollStudents),
     courseController.enrollStudents
@@ -89,7 +89,7 @@ router.post('/classes/:id/students',
 // DELETE /classes/:id/students/:studentId - Remove student from class
 router.delete('/classes/:id/students/:studentId',
     auth,
-    requireCourseInstructor, // Class instructor or admin can remove students
+    requireCourseInstructor,
     validateParams(courseSchemas.enrollmentParams),
     courseController.removeStudentFromClass
 );
@@ -97,7 +97,7 @@ router.delete('/classes/:id/students/:studentId',
 // GET /students/:id/classes - Get classes of a student
 router.get('/students/:id/classes',
     auth,
-    requireSelfOrElevated, // Students can view their own classes, lecturers/admins can view any
+    requireSelfOrElevated,
     validateParams(commonSchemas.id),
     validateQuery(commonSchemas.pagination),
     courseController.getStudentClasses
@@ -107,7 +107,7 @@ router.get('/students/:id/classes',
 // GET /courses - Get subjects with pagination
 router.get('/',
     auth,
-    requireLecturer, // Lecturers and admins can view courses
+    requireLecturer,
     validateQuery(commonSchemas.coursePagination),
     courseController.getCourses
 );
@@ -115,7 +115,7 @@ router.get('/',
 // POST /courses - Create subject
 router.post('/',
     auth,
-    requireLecturer, // Lecturers and admins can create subjects
+    requireLecturer,
     validate(courseSchemas.createCourse),
     courseController.createCourse
 );
@@ -123,7 +123,7 @@ router.post('/',
 // GET /courses/:id - Get single course
 router.get('/:id',
     auth,
-    requireLecturer, // Lecturers and admins can view course details
+    requireLecturer,
     validateParams(commonSchemas.id),
     courseController.getCourse
 );
@@ -131,7 +131,7 @@ router.get('/:id',
 // PUT /courses/:id - Update course
 router.put('/:id',
     auth,
-    requireCourseInstructor, // Course instructor or admin can update courses
+    requireCourseInstructor,
     validateParams(commonSchemas.id),
     validate(courseSchemas.updateCourse),
     courseController.updateCourse
@@ -140,7 +140,7 @@ router.put('/:id',
 // DELETE /courses/:id - Delete course
 router.delete('/:id',
     auth,
-    requireCourseInstructor, // Course instructor or admin can delete courses
+    requireCourseInstructor,
     validateParams(commonSchemas.id),
     courseController.deleteCourse
 );
@@ -148,7 +148,7 @@ router.delete('/:id',
 // GET /courses/:id/students - Get students enrolled in course
 router.get('/:id/students',
     auth,
-    requireLecturer, // Lecturers and admins can view course students
+    requireLecturer,
     validateParams(commonSchemas.id),
     validateQuery(commonSchemas.pagination),
     courseController.getCourseStudents

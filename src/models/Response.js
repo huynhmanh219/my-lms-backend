@@ -1,5 +1,4 @@
-// Response Model
-// Individual student responses to quiz questions
+
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -102,7 +101,6 @@ const Response = sequelize.define('Response', {
     ]
 });
 
-// Instance methods
 Response.prototype.isCorrect = function() {
     return this.is_correct === true;
 };

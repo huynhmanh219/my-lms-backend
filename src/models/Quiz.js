@@ -1,5 +1,3 @@
-// Quiz Model
-// Quiz/Test model for assessment management
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -124,7 +122,7 @@ const Quiz = sequelize.define('Quiz', {
     ]
 });
 
-// Instance methods
+
 Quiz.prototype.isPublished = function() {
     return this.status === 'published';
 };

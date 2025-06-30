@@ -1,5 +1,3 @@
-// User Controller
-// Handles user management operations for teachers and students
 
 const { Account, Role, Student, Lecturer } = require('../models');
 const authService = require('../services/authService');
@@ -9,18 +7,13 @@ const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 
 const userController = {
-    // ==========================================
-    // TEACHER MANAGEMENT (7 APIs)
-    // ==========================================
-
-    // GET /users/teachers - Get teachers with pagination, search, filters
+    // GET /users/teachers 
     getTeachers: async (req, res, next) => {
         try {
             const { page = 1, limit = 10, search, department, title, sort = 'created_at', order = 'desc' } = req.query;
 
-            // Build search conditions
             const whereConditions = {};
-            const accountWhereConditions = { role_id: 2 }; // Lecturer role
+            const accountWhereConditions = { role_id: 2 };
             const lecturerWhereConditions = {};
 
             if (search) {
@@ -41,7 +34,6 @@ const userController = {
                 lecturerWhereConditions.title = { [Op.like]: `%${title}%` };
             }
 
-            // Get paginated results
             const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
 
             const { count, rows } = await Account.findAndCountAll({
@@ -87,7 +79,7 @@ const userController = {
         }
     },
 
-    // GET /users/teachers/:id - Get single teacher
+    // GET /users/teachers/:id 
     getTeacher: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -131,28 +123,25 @@ const userController = {
         }
     },
 
-    // POST /users/teachers - Create teacher (account + lecturer profile)
+    // POST /users/teachers 
     createTeacher: async (req, res, next) => {
         const transaction = await sequelize.transaction();
         
         try {
             const { email, password, first_name, last_name, phone, title, department, bio } = req.body;
 
-            // Check if email already exists
             const existingAccount = await Account.findOne({ where: { email } });
             if (existingAccount) {
                 throw new ValidationError('Email already exists');
             }
 
-            // Create account
             const account = await Account.create({
                 email,
-                password, // Will be hashed by model hook
-                role_id: 2, // Lecturer role
+                password,
+                role_id: 2,
                 is_active: true
             }, { transaction });
 
-            // Create lecturer profile
             const lecturer = await Lecturer.create({
                 account_id: account.id,
                 first_name,
@@ -183,7 +172,7 @@ const userController = {
         }
     },
 
-    // PUT /users/teachers/:id - Update teacher
+    // PUT /users/teachers/:id 
     updateTeacher: async (req, res, next) => {
         const transaction = await sequelize.transaction();
         
@@ -191,7 +180,6 @@ const userController = {
             const { id } = req.params;
             const { email, first_name, last_name, phone, title, department, bio, is_active } = req.body;
 
-            // Find teacher
             const account = await Account.findOne({
                 where: { id, role_id: 2 },
                 include: [{ model: Lecturer, as: 'lecturer' }]
@@ -201,7 +189,6 @@ const userController = {
                 throw new NotFoundError('Teacher not found');
             }
 
-            // Check if email is being changed and if it's already taken
             if (email && email !== account.email) {
                 const existingAccount = await Account.findOne({ where: { email } });
                 if (existingAccount) {
@@ -209,13 +196,11 @@ const userController = {
                 }
             }
 
-            // Update account
             await account.update({
                 email: email || account.email,
                 is_active: is_active !== undefined ? is_active : account.is_active
             }, { transaction });
 
-            // Update lecturer profile
             await account.lecturer.update({
                 first_name: first_name || account.lecturer.first_name,
                 last_name: last_name || account.lecturer.last_name,
@@ -227,7 +212,6 @@ const userController = {
 
             await transaction.commit();
 
-            // Fetch updated teacher
             const updatedTeacher = await Account.findByPk(id, {
                 include: [{ model: Lecturer, as: 'lecturer' }]
             });
@@ -250,7 +234,7 @@ const userController = {
         }
     },
 
-    // DELETE /users/teachers/:id - Soft delete teacher
+    // DELETE /users/teachers/:id 
     deleteTeacher: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -263,7 +247,6 @@ const userController = {
                 throw new NotFoundError('Teacher not found');
             }
 
-            // Soft delete by setting is_active to false
             await teacher.update({ is_active: false });
 
             res.status(200).json({
@@ -275,11 +258,9 @@ const userController = {
         }
     },
 
-    // GET /users/teachers/export-excel - Export teachers to Excel
+    // GET /users/teachers/export-excel 
     exportTeachersExcel: async (req, res, next) => {
         try {
-            // TODO: Implement Excel export functionality
-            // For now, return JSON that could be used for Excel export
             const teachers = await Account.findAll({
                 where: { role_id: 2, is_active: true },
                 include: [
@@ -316,7 +297,7 @@ const userController = {
         }
     },
 
-    // POST /users/teachers/:id/upload-avatar - Upload teacher avatar
+    // POST /users/teachers/:id/upload-avatar 
     uploadTeacherAvatar: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -330,8 +311,6 @@ const userController = {
                 throw new NotFoundError('Teacher not found');
             }
 
-            // TODO: Implement file upload logic with multer
-            // For now, simulate avatar upload
             const avatarUrl = req.file ? `/uploads/avatars/${req.file.filename}` : null;
 
             if (avatarUrl) {
@@ -350,17 +329,12 @@ const userController = {
         }
     },
 
-    // ==========================================
-    // STUDENT MANAGEMENT (8 APIs)
-    // ==========================================
-
-    // GET /users/students - Get students with pagination, search, filters
+    // GET /users/students 
     getStudents: async (req, res, next) => {
         try {
             const { page = 1, limit = 10, search, class_id, sort = 'created_at', order = 'desc' } = req.query;
 
-            // Build search conditions
-            const accountWhereConditions = { role_id: 3 }; // Student role
+            const accountWhereConditions = { role_id: 3 };
             const studentWhereConditions = {};
 
             if (search) {
@@ -374,7 +348,6 @@ const userController = {
                 ];
             }
 
-            // Get paginated results
             const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
 
             const { count, rows } = await Account.findAndCountAll({
@@ -420,7 +393,7 @@ const userController = {
         }
     },
 
-    // GET /users/students/:id - Get single student
+            // GET /users/students/:id 
     getStudent: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -464,34 +437,30 @@ const userController = {
         }
     },
 
-    // POST /users/students - Create student (account + student profile)
+    // POST /users/students 
     createStudent: async (req, res, next) => {
         const transaction = await sequelize.transaction();
         
         try {
             const { email, password, student_id, first_name, last_name, phone, date_of_birth, address } = req.body;
 
-            // Check if email already exists
             const existingAccount = await Account.findOne({ where: { email } });
             if (existingAccount) {
                 throw new ValidationError('Email already exists');
             }
 
-            // Check if student ID already exists
             const existingStudent = await Student.findOne({ where: { student_id } });
             if (existingStudent) {
                 throw new ValidationError('Student ID already exists');
             }
 
-            // Create account
             const account = await Account.create({
                 email,
-                password, // Will be hashed by model hook
-                role_id: 3, // Student role
+                password,
+                role_id: 3,
                 is_active: true
             }, { transaction });
 
-            // Create student profile
             const student = await Student.create({
                 account_id: account.id,
                 student_id,
@@ -522,7 +491,7 @@ const userController = {
         }
     },
 
-    // PUT /users/students/:id - Update student
+    // PUT /users/students/:id 
     updateStudent: async (req, res, next) => {
         const transaction = await sequelize.transaction();
         
@@ -530,7 +499,6 @@ const userController = {
             const { id } = req.params;
             const { email, student_id, first_name, last_name, phone, date_of_birth, address, is_active } = req.body;
 
-            // Find student
             const account = await Account.findOne({
                 where: { id, role_id: 3 },
                 include: [{ model: Student, as: 'student' }]
@@ -540,7 +508,6 @@ const userController = {
                 throw new NotFoundError('Student not found');
             }
 
-            // Check if email is being changed and if it's already taken
             if (email && email !== account.email) {
                 const existingAccount = await Account.findOne({ where: { email } });
                 if (existingAccount) {
@@ -548,7 +515,6 @@ const userController = {
                 }
             }
 
-            // Check if student ID is being changed and if it's already taken
             if (student_id && student_id !== account.student.student_id) {
                 const existingStudent = await Student.findOne({ where: { student_id } });
                 if (existingStudent) {
@@ -556,13 +522,11 @@ const userController = {
                 }
             }
 
-            // Update account
             await account.update({
                 email: email || account.email,
                 is_active: is_active !== undefined ? is_active : account.is_active
             }, { transaction });
 
-            // Update student profile
             await account.student.update({
                 student_id: student_id || account.student.student_id,
                 first_name: first_name || account.student.first_name,
@@ -574,7 +538,6 @@ const userController = {
 
             await transaction.commit();
 
-            // Fetch updated student
             const updatedStudent = await Account.findByPk(id, {
                 include: [{ model: Student, as: 'student' }]
             });
@@ -597,7 +560,7 @@ const userController = {
         }
     },
 
-    // DELETE /users/students/:id - Soft delete student
+    // DELETE /users/students/:id 
     deleteStudent: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -610,7 +573,6 @@ const userController = {
                 throw new NotFoundError('Student not found');
             }
 
-            // Soft delete by setting is_active to false
             await student.update({ is_active: false });
 
             res.status(200).json({
@@ -622,11 +584,9 @@ const userController = {
         }
     },
 
-    // POST /users/students/import-excel - Import students from Excel
+    // POST /users/students/import-excel 
     importStudentsExcel: async (req, res, next) => {
         try {
-            // TODO: Implement Excel import functionality
-            // For now, simulate import process
             const importResults = {
                 total: 0,
                 successful: 0,
@@ -644,11 +604,9 @@ const userController = {
         }
     },
 
-    // GET /users/students/export-excel - Export students to Excel
+            // GET /users/students/export-excel 
     exportStudentsExcel: async (req, res, next) => {
         try {
-            // TODO: Implement Excel export functionality
-            // For now, return JSON that could be used for Excel export
             const students = await Account.findAll({
                 where: { role_id: 3, is_active: true },
                 include: [
@@ -686,7 +644,7 @@ const userController = {
         }
     },
 
-    // POST /users/students/:id/upload-avatar - Upload student avatar
+    // POST /users/students/:id/upload-avatar 
     uploadStudentAvatar: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -700,8 +658,6 @@ const userController = {
                 throw new NotFoundError('Student not found');
             }
 
-            // TODO: Implement file upload logic with multer
-            // For now, simulate avatar upload
             const avatarUrl = req.file ? `/uploads/avatars/${req.file.filename}` : null;
 
             if (avatarUrl) {
@@ -719,12 +675,8 @@ const userController = {
             next(error);
         }
     },
-
-    // ==========================================
-    // ROLE MANAGEMENT (1 API)
-    // ==========================================
-
-    // GET /users/roles - Get all roles
+    
+    // GET /users/roles 
     getRoles: async (req, res, next) => {
         try {
             const roles = await Role.findAll({

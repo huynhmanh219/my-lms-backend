@@ -1,5 +1,4 @@
-// Question Management Routes
-// Routes for managing quiz questions and answers
+
 
 const express = require('express');
 const router = express.Router();
@@ -11,7 +10,7 @@ const { commonSchemas } = require('../middleware/validation');
 const { uploadLimiter } = require('../middleware/rateLimiter');
 const upload = require('../config/multer');
 
-// Question Management Routes
+
 router.get('/:id',
     auth,
     validateParams(commonSchemas.id),

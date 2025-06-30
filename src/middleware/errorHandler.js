@@ -1,5 +1,4 @@
-// Global Error Handler Middleware
-// Centralized error handling and logging
+
 
 const { logApp, logSecurity } = require('../services/loggerService');
 
@@ -7,15 +6,12 @@ const errorHandler = (err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
 
-    // Get user info for logging
     const userId = req.user ? req.user.id : null;
     const ip = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
 
-    // Log error with context
     logApp.error('Application error occurred', err, userId, ip);
 
-    // Handle specific error types
     if (err.name === 'CastError') {
         const message = 'Resource not found';
         error = {
@@ -26,7 +22,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Mongoose duplicate key error
     else if (err.code === 11000) {
         const message = 'Duplicate field value entered';
         error = {
@@ -37,7 +32,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Mongoose validation error
     else if (err.name === 'ValidationError') {
         const message = err.errors ? Object.values(err.errors).map(val => val.message).join(', ') : err.message;
         error = {
@@ -48,7 +42,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Sequelize validation error
     else if (err.name === 'SequelizeValidationError') {
         const message = err.errors.map(e => e.message).join(', ');
         error = {
@@ -59,7 +52,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Sequelize unique constraint error
     else if (err.name === 'SequelizeUniqueConstraintError') {
         const message = 'Duplicate field value entered';
         error = {
@@ -70,7 +62,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Sequelize foreign key constraint error
     else if (err.name === 'SequelizeForeignKeyConstraintError') {
         const message = 'Related record not found or constraint violation';
         error = {
@@ -81,7 +72,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Sequelize database connection error
     else if (err.name === 'SequelizeConnectionError') {
         const message = 'Database connection failed';
         error = {
@@ -93,7 +83,6 @@ const errorHandler = (err, req, res, next) => {
         logApp.error('Database connection error', err, userId, ip);
     }
 
-    // JWT errors
     else if (err.name === 'JsonWebTokenError') {
         const message = 'Invalid token';
         error = {
@@ -115,7 +104,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Multer errors
     else if (err.code === 'LIMIT_FILE_SIZE') {
         const message = 'File size too large';
         error = {
@@ -146,7 +134,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Custom application errors
     else if (err.isOperational) {
         error = {
             status: err.status || 'error',
@@ -156,7 +143,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Security-related errors
     else if (err.code === 'SECURITY_VIOLATION') {
         logSecurity.securityViolation('GENERAL', ip, userAgent, { error: err.message });
         error = {
@@ -167,7 +153,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Default server error
     else {
         error = {
             status: 'error',
@@ -177,7 +162,6 @@ const errorHandler = (err, req, res, next) => {
         };
     }
 
-    // Log security events for certain status codes
     if (error.statusCode === 401 || error.statusCode === 403) {
         logSecurity.accessDenied(
             userId,
@@ -187,7 +171,6 @@ const errorHandler = (err, req, res, next) => {
         );
     }
 
-    // Prepare response
     const response = {
         status: error.status || 'error',
         message: error.message || 'Internal Server Error',
@@ -195,13 +178,11 @@ const errorHandler = (err, req, res, next) => {
         timestamp: new Date().toISOString()
     };
 
-    // Add stack trace in development
     if (process.env.NODE_ENV === 'development') {
         response.stack = err.stack;
         response.details = err;
     }
 
-    // Add request ID for tracking
     if (req.id) {
         response.requestId = req.id;
     }
@@ -209,12 +190,10 @@ const errorHandler = (err, req, res, next) => {
     res.status(error.statusCode || 500).json(response);
 };
 
-// Async error handler wrapper
 const asyncHandler = (fn) => (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-// Custom error classes (keeping existing ones and adding new ones)
 class AppError extends Error {
     constructor(message, statusCode, code = null) {
         super(message);
@@ -268,8 +247,7 @@ class DatabaseError extends AppError {
         this.name = 'DatabaseError';
     }
 }
-
-// Not found handler for undefined routes
+    
 const notFoundHandler = (req, res, next) => {
     const error = new NotFoundError(`Route ${req.originalUrl} not found`);
     next(error);

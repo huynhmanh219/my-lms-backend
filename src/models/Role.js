@@ -1,5 +1,3 @@
-// Role Model
-// User roles model for role-based access control
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');

@@ -1,5 +1,3 @@
-// Material Controller
-// Handles learning material management operations: CRUD, file operations, search & sharing
 
 const { LearningMaterial, Subject, Chapter, Lecturer, sequelize } = require('../models');
 const { Op } = require('sequelize');
@@ -9,11 +7,8 @@ const path = require('path');
 const fs = require('fs').promises;
 
 const materialController = {
-    // ================================
-    // MATERIAL CRUD (6 APIs)
-    // ================================
 
-    // GET /materials - Get all materials with advanced filtering
+    // GET /materials 
     getMaterials: async (req, res, next) => {
         try {
             const { page = 1, size = 10, search, subject_id, chapter_id, material_type, is_public } = req.query;
@@ -36,9 +31,9 @@ const materialController = {
             const materials = await LearningMaterial.findAndCountAll({
                 where: whereConditions,
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
-                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name', 'email'] }
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'first_name', 'last_name'] }
                 ],
                 limit,
                 offset,
@@ -47,7 +42,7 @@ const materialController = {
             });
 
             const response = getPagingData(materials, page, limit);
-            response.items = response.items.map(material => {
+            response.data = response.data.map(material => {
                 const data = material.toJSON();
                 data.file_size_formatted = material.getFileSizeFormatted();
                 return data;
@@ -63,16 +58,16 @@ const materialController = {
         }
     },
 
-    // GET /materials/:id - Get single material
+    // GET /materials/:id 
     getMaterial: async (req, res, next) => {
         try {
             const { id } = req.params;
 
             const material = await LearningMaterial.findByPk(id, {
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
-                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name', 'email'] }
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'first_name', 'last_name'] }
                 ]
             });
 
@@ -96,7 +91,7 @@ const materialController = {
         }
     },
 
-    // POST /materials - Create new material
+    // POST /materials 
     createMaterial: async (req, res, next) => {
         try {
             const {
@@ -130,7 +125,7 @@ const materialController = {
 
             const createdMaterial = await LearningMaterial.findByPk(material.id, {
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: Chapter, as: 'chapter', attributes: ['id', 'title'] }
                 ]
             });
@@ -145,7 +140,7 @@ const materialController = {
         }
     },
 
-    // PUT /materials/:id - Update material
+    // PUT /materials/:id 
     updateMaterial: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -168,7 +163,7 @@ const materialController = {
 
             const updatedMaterial = await LearningMaterial.findByPk(id, {
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: Chapter, as: 'chapter', attributes: ['id', 'title'] }
                 ]
             });
@@ -183,7 +178,7 @@ const materialController = {
         }
     },
 
-    // DELETE /materials/:id - Delete material
+    // DELETE /materials/:id 
     deleteMaterial: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -216,7 +211,7 @@ const materialController = {
         }
     },
 
-    // GET /materials/:id/details - Get material with full details
+    // GET /materials/:id/details 
     getMaterialDetails: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -226,11 +221,11 @@ const materialController = {
                     { 
                         model: Subject, 
                         as: 'subject', 
-                        attributes: ['id', 'name', 'code', 'description'],
-                        include: [{ model: Lecturer, as: 'lecturer', attributes: ['id', 'name'] }]
+                        attributes: ['id', 'subject_name', 'subject_code', 'description'],
+                        include: [{ model: Lecturer, as: 'lecturer', attributes: ['id', 'first_name', 'last_name'] }]
                     },
                     { model: Chapter, as: 'chapter', attributes: ['id', 'title', 'description'] },
-                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name', 'email'] }
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'first_name', 'last_name'] }
                 ]
             });
 
@@ -255,11 +250,7 @@ const materialController = {
         }
     },
 
-    // ================================
-    // FILE OPERATIONS (7 APIs)
-    // ================================
-
-    // POST /materials/upload - Upload single file
+    // POST /materials/upload 
     uploadMaterial: async (req, res, next) => {
         try {
             if (!req.file) {
@@ -297,8 +288,9 @@ const materialController = {
 
             const createdMaterial = await LearningMaterial.findByPk(material.id, {
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
-                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] }
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
+                    { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'first_name', 'last_name'] }
                 ]
             });
 
@@ -312,7 +304,7 @@ const materialController = {
         }
     },
 
-    // GET /materials/:id/download - Download material file
+    // GET /materials/:id/download 
     downloadMaterial: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -352,7 +344,7 @@ const materialController = {
         }
     },
 
-    // POST /materials/upload-multiple - Upload multiple files
+    // POST /materials/upload-multiple 
     uploadMultipleMaterials: async (req, res, next) => {
         try {
             if (!req.files || req.files.length === 0) {
@@ -393,11 +385,7 @@ const materialController = {
         }
     },
 
-    // ================================
-    // SEARCH & DISCOVERY (6 APIs)
-    // ================================
-
-    // GET /materials/search - Full-text search
+    // GET /materials/search 
     searchMaterials: async (req, res, next) => {
         try {
             const { query, page = 1, size = 10 } = req.query;
@@ -419,9 +407,9 @@ const materialController = {
                     ]
                 },
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
-                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name'] }
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'first_name', 'last_name'] }
                 ],
                 limit,
                 offset,
@@ -441,7 +429,7 @@ const materialController = {
         }
     },
 
-    // GET /materials/recent - Get recent materials
+    // GET /materials/recent 
     getRecentMaterials: async (req, res, next) => {
         try {
             const { page = 1, size = 10, days = 7 } = req.query;
@@ -457,9 +445,9 @@ const materialController = {
                     }
                 },
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
-                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name'] }
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'first_name', 'last_name'] }
                 ],
                 limit,
                 offset,
@@ -478,7 +466,7 @@ const materialController = {
         }
     },
 
-    // GET /materials/by-type - Filter by material type
+        // GET /materials/by-type 
     getMaterialsByType: async (req, res, next) => {
         try {
             const { type, page = 1, size = 10 } = req.query;
@@ -494,9 +482,9 @@ const materialController = {
             const materials = await LearningMaterial.findAndCountAll({
                 where: { material_type: type },
                 include: [
-                    { model: Subject, as: 'subject', attributes: ['id', 'name', 'code'] },
+                    { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: Chapter, as: 'chapter', attributes: ['id', 'title'] },
-                    { model: Lecturer, as: 'uploader', attributes: ['id', 'name'] }
+                    { model: Lecturer, as: 'uploader', attributes: ['id', 'first_name', 'last_name'] }
                 ],
                 limit,
                 offset,

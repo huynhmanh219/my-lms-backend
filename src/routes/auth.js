@@ -1,5 +1,3 @@
-// Authentication Routes
-// Routes for login, logout, password management
 
 const express = require('express');
 const router = express.Router();
@@ -19,13 +17,13 @@ router.post('/login',
 
 // POST /auth/logout
 router.post('/logout', 
-    auth, // Require authentication for logout
+    auth,
     authController.logout
 );
 
 // POST /auth/change-password
 router.post('/change-password',
-    auth, // Require authentication for password change
+    auth,
     validate(authSchemas.changePassword),
     authController.changePassword
 );

@@ -1,5 +1,4 @@
-// Authentication Middleware
-// JWT token verification and user authentication
+
 
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../config/jwt');
@@ -18,7 +17,6 @@ const auth = async (req, res, next) => {
 
         const decoded = jwt.verify(token, jwtConfig.secret);
         
-        // Find user to ensure they still exist and are active
         const user = await Account.findByPk(decoded.id, {
             attributes: ['id', 'email', 'role_id', 'is_active'],
             include: [
@@ -37,7 +35,6 @@ const auth = async (req, res, next) => {
             });
         }
 
-        // Add user information to request
         req.user = {
             id: user.id,
             email: user.email,
@@ -68,7 +65,6 @@ const auth = async (req, res, next) => {
     }
 };
 
-// Optional authentication - doesn't fail if no token
 const optionalAuth = async (req, res, next) => {
     try {
         const token = req.header('Authorization')?.replace('Bearer ', '');
@@ -76,7 +72,6 @@ const optionalAuth = async (req, res, next) => {
         if (token) {
             const decoded = jwt.verify(token, jwtConfig.secret);
             
-            // Find user to ensure they still exist and are active
             const user = await Account.findByPk(decoded.id, {
                 attributes: ['id', 'email', 'role_id', 'is_active'],
                 include: [
@@ -100,7 +95,6 @@ const optionalAuth = async (req, res, next) => {
         
         next();
     } catch (error) {
-        // Silent fail for optional auth
         next();
     }
 };

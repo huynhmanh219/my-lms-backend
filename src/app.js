@@ -1,5 +1,3 @@
-// Express Application Setup
-// Main application configuration and middleware setup
 
 const express = require('express');
 const cors = require('cors');
@@ -7,7 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 
-// Import middleware
+
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { generalLimiter, speedLimiter } = require('./middleware/rateLimiter');
 const { 
@@ -23,10 +21,9 @@ const {
 const { validateSecureInput } = require('./middleware/validation');
 const { requestLogger } = require('./services/loggerService');
 
-// Import Swagger documentation
-// const { specs, swaggerUi, swaggerUiOptions } = require('./config/swagger');  
 
-// Import routes
+
+
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const courseRoutes = require('./routes/courses');
@@ -38,13 +35,13 @@ const quizAttemptRoutes = require('./routes/quiz-attempts');
 const studentRoutes = require('./routes/students');
 const statisticsRoutes = require('./routes/statistics');
 
-// Create Express application
+
 const app = express();
 
-// Trust proxy for accurate IP addresses
+
 app.set('trust proxy', 1);
 
-// Security middleware (applied early)
+
 app.use(helmet({
     crossOriginEmbedderPolicy: false,
     contentSecurityPolicy: {
@@ -69,10 +66,9 @@ app.use(helmet({
     }
 }));
 
-// Additional security headers
 app.use(securityHeaders);
 
-// CORS configuration
+
 const corsOptions = {
     origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173'],
     credentials: true,
@@ -83,13 +79,12 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Request logging middleware
 if (process.env.NODE_ENV !== 'test') {
     app.use(requestLogger);
     app.use(morgan('combined'));
 }
 
-// Body parsing middleware with size limits
+// Body parsing size limits
 app.use(express.json({ 
     limit: '10mb',
     verify: (req, res, buf) => {
@@ -102,7 +97,6 @@ app.use(express.urlencoded({
     parameterLimit: 100
 }));
 
-// Security middleware stack
 app.use(requestSizeLimiter);
 app.use(hppProtection);
 app.use(mongoSanitization);
@@ -115,15 +109,12 @@ app.use(validateSecureInput);
 app.use(generalLimiter);
 app.use(speedLimiter);
 
-// Static files serving with security headers
 app.use('/uploads', (req, res, next) => {
-    // Additional security for file serving
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     next();
 }, express.static(path.join(__dirname, '../uploads')));
 
-// Health check endpoint (before other routes)
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'success',
@@ -135,7 +126,6 @@ app.get('/health', (req, res) => {
     });
 });
 
-// DEBUG: Log final request body before routes
 app.use('/api', (req, res, next) => {
     if (req.method === 'POST' && req.url.includes('/users/students')) {
         console.log('🔍 MIDDLEWARE DEBUG - Final request body before routes:');
@@ -152,7 +142,6 @@ app.use('/api', (req, res, next) => {
     next();
 });
 
-// Security info endpoint (for development)
 if (process.env.NODE_ENV === 'development') {
     app.get('/security-info', (req, res) => {
         res.status(200).json({
@@ -184,7 +173,6 @@ if (process.env.NODE_ENV === 'development') {
     });
 }
 
-// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);
@@ -195,11 +183,9 @@ app.use('/api/questions', questionRoutes);
 app.use('/api/quiz-attempts', quizAttemptRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/statistics', statisticsRoutes);
-
-// 404 handler for undefined routes
+    
 app.use('*', notFoundHandler);
 
-// Global error handling middleware (must be last)
 app.use(errorHandler);
 
 module.exports = app; 

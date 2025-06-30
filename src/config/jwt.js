@@ -1,5 +1,4 @@
-// JWT Configuration
-// This file handles JWT token configuration and utilities
+
 
 require('dotenv').config();
 

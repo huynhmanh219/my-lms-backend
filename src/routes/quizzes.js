@@ -1,5 +1,3 @@
-// Quiz Management Routes
-// Routes for managing quizzes, questions, attempts, and results
 
 const express = require('express');
 const router = express.Router();
@@ -58,14 +56,12 @@ router.post('/:id/close',
     quizController.closeQuiz
 );
 
-// Get quiz questions (keep this one as it's quiz-specific)
 router.get('/:id/questions',
     auth,
     validateParams(commonSchemas.id),
     quizController.getQuizQuestions
 );
 
-// Quiz Attempt System Routes
 router.get('/:id/start',
     auth,
     requireStudent,
@@ -73,7 +69,7 @@ router.get('/:id/start',
     quizController.startQuiz
 );
 
-// Results & Analytics Routes
+
 router.get('/:id/results',
     auth,
     requireLecturer,

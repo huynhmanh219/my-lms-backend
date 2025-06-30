@@ -1,22 +1,16 @@
-// Lecture Controller
-// Handles lecture management operations: lectures, chapters, permissions
 
 const { Lecture, Chapter, Subject, LearningMaterial, Lecturer, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { getPagination, getPagingData } = require('../services/paginationService');
 
 const lectureController = {
-    // ================================
-    // LECTURE MANAGEMENT (6 APIs)
-    // ================================
 
-    // GET /lectures - Get all lectures with pagination and filtering
+    // GET /lectures 
     getLectures: async (req, res, next) => {
         try {
             const { page = 1, size = 10, search, chapter_id, is_published } = req.query;
             const { limit, offset } = getPagination(page, size);
 
-            // Build where conditions
             const whereConditions = {};
             
             if (search) {
@@ -45,7 +39,7 @@ const lectureController = {
                             {
                                 model: Subject,
                                 as: 'subject',
-                                attributes: ['id', 'name', 'code']
+                                attributes: ['id', 'subject_name', 'subject_code']
                             }
                         ]
                     }
@@ -68,7 +62,7 @@ const lectureController = {
         }
     },
 
-    // GET /lectures/:id - Get single lecture
+    // GET /lectures/:id 
     getLecture: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -83,12 +77,12 @@ const lectureController = {
                             {
                                 model: Subject,
                                 as: 'subject',
-                                attributes: ['id', 'name', 'code', 'description'],
+                                attributes: ['id', 'subject_name', 'subject_code', 'description'],
                                 include: [
                                     {
                                         model: Lecturer,
                                         as: 'lecturer',
-                                        attributes: ['id', 'name', 'email']
+                                        attributes: ['id', 'first_name', 'last_name', 'title', 'department']
                                     }
                                 ]
                             }
@@ -104,7 +98,6 @@ const lectureController = {
                 });
             }
 
-            // Add formatted duration
             const lectureData = lecture.toJSON();
             lectureData.duration_formatted = lecture.getDurationFormatted();
 
@@ -118,7 +111,7 @@ const lectureController = {
         }
     },
 
-    // POST /lectures - Create new lecture
+    // POST /lectures 
     createLecture: async (req, res, next) => {
         try {
             const {
@@ -131,7 +124,6 @@ const lectureController = {
                 is_published = false
             } = req.body;
 
-            // Validate chapter exists
             const chapter = await Chapter.findByPk(chapter_id);
             if (!chapter) {
                 return res.status(404).json({
@@ -140,7 +132,6 @@ const lectureController = {
                 });
             }
 
-            // If order_index not provided, set as last
             let finalOrderIndex = order_index;
             if (!finalOrderIndex) {
                 const maxOrder = await Lecture.max('order_index', {
@@ -159,7 +150,6 @@ const lectureController = {
                 is_published
             });
 
-            // Fetch the created lecture with associations
             const createdLecture = await Lecture.findByPk(lecture.id, {
                 include: [
                     {
@@ -180,7 +170,7 @@ const lectureController = {
         }
     },
 
-    // PUT /lectures/:id - Update lecture
+    // PUT /lectures/:id 
     updateLecture: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -202,7 +192,6 @@ const lectureController = {
                 });
             }
 
-            // If changing chapter, validate new chapter exists
             if (chapter_id && chapter_id !== lecture.chapter_id) {
                 const chapter = await Chapter.findByPk(chapter_id);
                 if (!chapter) {
@@ -223,7 +212,6 @@ const lectureController = {
                 is_published: is_published !== undefined ? is_published : lecture.is_published
             });
 
-            // Fetch updated lecture with associations
             const updatedLecture = await Lecture.findByPk(id, {
                 include: [
                     {
@@ -244,7 +232,7 @@ const lectureController = {
         }
     },
 
-    // DELETE /lectures/:id - Delete lecture
+    // DELETE /lectures/:id 
     deleteLecture: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -268,7 +256,7 @@ const lectureController = {
         }
     },
 
-    // GET /lectures/:id/attachments - Get lecture attachments
+    // GET /lectures/:id/attachments    
     getLectureAttachments: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -282,23 +270,20 @@ const lectureController = {
                 });
             }
 
-            // Get attachments through chapter (learning materials)
             const attachments = await LearningMaterial.findAll({
                 where: {
                     chapter_id: lecture.chapter_id,
-                    // Could add lecture_id field to LearningMaterial model for more specific attachments
                 },
                 include: [
                     {
                         model: Lecturer,
                         as: 'uploader',
-                        attributes: ['id', 'name', 'email']
+                        attributes: ['id', 'first_name', 'last_name', 'title']
                     }
                 ],
                 order: [['created_at', 'DESC']]
             });
 
-            // Format the attachments
             const formattedAttachments = attachments.map(attachment => {
                 const attachmentData = attachment.toJSON();
                 attachmentData.file_size_formatted = attachment.getFileSizeFormatted();
@@ -315,17 +300,12 @@ const lectureController = {
         }
     },
 
-    // ================================
-    // CHAPTER MANAGEMENT (6 APIs)
-    // ================================
-
-    // GET /chapters - Get all chapters with pagination
+    // GET /chapters 
     getChapters: async (req, res, next) => {
         try {
             const { page = 1, size = 10, search, subject_id, status } = req.query;
             const { limit, offset } = getPagination(page, size);
 
-            // Build where conditions
             const whereConditions = {};
             
             if (search) {
@@ -349,7 +329,7 @@ const lectureController = {
                     {
                         model: Subject,
                         as: 'subject',
-                        attributes: ['id', 'name', 'code', 'description']
+                        attributes: ['id', 'subject_name', 'subject_code', 'description']
                     },
                     {
                         model: Lecture,
@@ -375,7 +355,7 @@ const lectureController = {
         }
     },
 
-    // GET /chapters/:id - Get single chapter
+    // GET /chapters/:id 
     getChapter: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -385,12 +365,12 @@ const lectureController = {
                     {
                         model: Subject,
                         as: 'subject',
-                        attributes: ['id', 'name', 'code', 'description'],
+                        attributes: ['id', 'subject_name', 'subject_code', 'description'],
                         include: [
                             {
                                 model: Lecturer,
                                 as: 'lecturer',
-                                attributes: ['id', 'name', 'email']
+                                attributes: ['id', 'first_name', 'last_name', 'title', 'department']
                             }
                         ]
                     },
@@ -420,7 +400,7 @@ const lectureController = {
         }
     },
 
-    // POST /chapters - Create new chapter
+    // POST /chapters 
     createChapter: async (req, res, next) => {
         try {
             const {
@@ -431,7 +411,6 @@ const lectureController = {
                 status = 'active'
             } = req.body;
 
-            // Validate subject exists
             const subject = await Subject.findByPk(subject_id);
             if (!subject) {
                 return res.status(404).json({
@@ -440,7 +419,6 @@ const lectureController = {
                 });
             }
 
-            // If order_index not provided, set as last
             let finalOrderIndex = order_index;
             if (!finalOrderIndex) {
                 const maxOrder = await Chapter.max('order_index', {
@@ -457,13 +435,12 @@ const lectureController = {
                 status
             });
 
-            // Fetch the created chapter with associations
             const createdChapter = await Chapter.findByPk(chapter.id, {
                 include: [
                     {
                         model: Subject,
                         as: 'subject',
-                        attributes: ['id', 'name', 'code']
+                        attributes: ['id', 'subject_name', 'subject_code']
                     }
                 ]
             });
@@ -478,7 +455,7 @@ const lectureController = {
         }
     },
 
-    // PUT /chapters/:id - Update chapter
+    // PUT /chapters/:id 
     updateChapter: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -498,7 +475,6 @@ const lectureController = {
                 });
             }
 
-            // If changing subject, validate new subject exists
             if (subject_id && subject_id !== chapter.subject_id) {
                 const subject = await Subject.findByPk(subject_id);
                 if (!subject) {
@@ -517,13 +493,12 @@ const lectureController = {
                 status: status || chapter.status
             });
 
-            // Fetch updated chapter with associations
             const updatedChapter = await Chapter.findByPk(id, {
                 include: [
                     {
                         model: Subject,
                         as: 'subject',
-                        attributes: ['id', 'name', 'code']
+                        attributes: ['id', 'subject_name', 'subject_code']
                     }
                 ]
             });
@@ -538,7 +513,7 @@ const lectureController = {
         }
     },
 
-    // DELETE /chapters/:id - Delete chapter
+    // DELETE /chapters/:id 
     deleteChapter: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -559,7 +534,6 @@ const lectureController = {
                 });
             }
 
-            // Check if chapter has lectures
             if (chapter.lectures && chapter.lectures.length > 0) {
                 return res.status(400).json({
                     success: false,
@@ -578,14 +552,13 @@ const lectureController = {
         }
     },
 
-    // GET /chapters/:id/lectures - Get lectures in a chapter
+    // GET /chapters/:id/lectures 
     getChapterLectures: async (req, res, next) => {
         try {
             const { id } = req.params;
             const { page = 1, size = 20 } = req.query;
             const { limit, offset } = getPagination(page, size);
 
-            // Verify chapter exists
             const chapter = await Chapter.findByPk(id);
             if (!chapter) {
                 return res.status(404).json({
@@ -603,7 +576,6 @@ const lectureController = {
 
             const response = getPagingData(lectures, page, limit);
 
-            // Add formatted durations
             response.items = response.items.map(lecture => {
                 const lectureData = lecture.toJSON();
                 lectureData.duration_formatted = lecture.getDurationFormatted();
@@ -625,11 +597,7 @@ const lectureController = {
         }
     },
 
-    // ================================
-    // PERMISSIONS & ACCESS (3 APIs)
-    // ================================
-
-    // GET /lectures/:id/permissions - Get lecture permissions
+    // GET /lectures/:id/permissions 
     getLecturePermissions: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -643,7 +611,7 @@ const lectureController = {
                             {
                                 model: Subject,
                                 as: 'subject',
-                                attributes: ['id', 'name', 'code']
+                                attributes: ['id', 'subject_name', 'subject_code']
                             }
                         ]
                     }
@@ -657,15 +625,14 @@ const lectureController = {
                 });
             }
 
-            // Basic permissions structure
             const permissions = {
                 lecture_id: lecture.id,
                 is_published: lecture.is_published,
                 chapter_status: lecture.chapter.status,
                 subject_info: lecture.chapter.subject,
-                can_edit: true, // This would be based on user role and ownership
-                can_delete: true, // This would be based on user role and ownership
-                can_publish: true, // This would be based on user role
+                can_edit: true, 
+                can_delete: true, 
+                can_publish: true, 
                 visibility: lecture.is_published ? 'public' : 'private',
                 created_at: lecture.created_at,
                 updated_at: lecture.updated_at
@@ -681,7 +648,7 @@ const lectureController = {
         }
     },
 
-    // PUT /lectures/:id/permissions - Update lecture permissions
+    // PUT /lectures/:id/permissions 
     updateLecturePermissions: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -695,7 +662,6 @@ const lectureController = {
                 });
             }
 
-            // Update permissions (mainly publication status)
             const updateData = {};
             
             if (is_published !== undefined) {
@@ -722,7 +688,7 @@ const lectureController = {
         }
     },
 
-    // GET /my-lectures - Get current user's lectures
+    // GET /my-lectures 
     getMyLectures: async (req, res, next) => {
         try {
             const { page = 1, size = 10, status, subject_id } = req.query;
@@ -733,9 +699,7 @@ const lectureController = {
             let whereConditions = {};
             let subjectWhere = {};
 
-            // If user is a lecturer, get lectures from their subjects
             if (userRole === 'lecturer') {
-                // Get lecturer's subjects first
                 const lecturer = await Lecturer.findOne({
                     where: { account_id: userId }
                 });
@@ -771,12 +735,12 @@ const lectureController = {
                                 model: Subject,
                                 as: 'subject',
                                 where: subjectWhere,
-                                attributes: ['id', 'name', 'code'],
+                                attributes: ['id', 'subject_name', 'subject_code'],
                                 include: [
                                     {
                                         model: Lecturer,
                                         as: 'lecturer',
-                                        attributes: ['id', 'name']
+                                        attributes: ['id', 'first_name', 'last_name']
                                     }
                                 ]
                             }
@@ -790,8 +754,7 @@ const lectureController = {
             });
 
             const response = getPagingData(lectures, page, limit);
-
-            // Add formatted durations
+                    
             response.items = response.items.map(lecture => {
                 const lectureData = lecture.toJSON();
                 lectureData.duration_formatted = lecture.getDurationFormatted();

@@ -1,15 +1,13 @@
-// Application Constants
-// Centralized constants and configuration
 
 const constants = {
-    // User roles
+
     USER_ROLES: {
         ADMIN: 'admin',
         LECTURER: 'lecturer',
         STUDENT: 'student'
     },
 
-    // User status
+
     USER_STATUS: {
         ACTIVE: 'active',
         INACTIVE: 'inactive',
@@ -18,14 +16,14 @@ const constants = {
         ON_LEAVE: 'on_leave'
     },
 
-    // Quiz status
+
     QUIZ_STATUS: {
         DRAFT: 'draft',
         PUBLISHED: 'published',
         CLOSED: 'closed'
     },
 
-    // Question types
+
     QUESTION_TYPES: {
         MULTIPLE_CHOICE: 'multiple_choice',
         TRUE_FALSE: 'true_false',
@@ -34,21 +32,21 @@ const constants = {
         FILL_IN_BLANK: 'fill_in_blank'
     },
 
-    // Course status
+
     COURSE_STATUS: {
         ACTIVE: 'active',
         INACTIVE: 'inactive',
         ARCHIVED: 'archived'
     },
 
-    // Class status
+
     CLASS_STATUS: {
         ACTIVE: 'active',
         COMPLETED: 'completed',
         CANCELLED: 'cancelled'
     },
 
-    // Material types
+
     MATERIAL_TYPES: {
         DOCUMENT: 'document',
         VIDEO: 'video',
@@ -57,7 +55,7 @@ const constants = {
         LINK: 'link'
     },
 
-    // File types
+
     ALLOWED_FILE_TYPES: {
         IMAGES: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
         DOCUMENTS: ['.pdf', '.doc', '.docx', '.txt', '.rtf'],
@@ -68,7 +66,7 @@ const constants = {
         AUDIO: ['.mp3', '.wav', '.ogg', '.m4a']
     },
 
-    // File size limits (in MB)
+
     FILE_SIZE_LIMITS: {
         AVATAR: 5,
         DOCUMENT: 50,
@@ -77,14 +75,14 @@ const constants = {
         IMAGE: 10
     },
 
-    // Pagination defaults
+
     PAGINATION: {
         DEFAULT_PAGE: 1,
         DEFAULT_LIMIT: 10,
         MAX_LIMIT: 100
     },
 
-    // Grade scales
+
     GRADE_SCALE: {
         A: { min: 90, max: 100 },
         B: { min: 80, max: 89 },
@@ -93,7 +91,7 @@ const constants = {
         F: { min: 0, max: 59 }
     },
 
-    // Time constants
+    
     TIME: {
         MINUTES_PER_HOUR: 60,
         HOURS_PER_DAY: 24,
@@ -101,7 +99,7 @@ const constants = {
         WEEKS_PER_SEMESTER: 16
     },
 
-    // HTTP status codes
+    
     HTTP_STATUS: {
         OK: 200,
         CREATED: 201,
@@ -115,7 +113,7 @@ const constants = {
         INTERNAL_SERVER_ERROR: 500
     },
 
-    // Response messages
+    
     MESSAGES: {
         SUCCESS: 'Operation successful',
         CREATED: 'Resource created successfully',
@@ -128,32 +126,32 @@ const constants = {
         INTERNAL_ERROR: 'Internal server error'
     },
 
-    // Academic periods
+    
     SEMESTERS: ['spring', 'summer', 'fall', 'winter'],
 
-    // Days of week
+    
     DAYS_OF_WEEK: [
         'monday', 'tuesday', 'wednesday', 
         'thursday', 'friday', 'saturday', 'sunday'
     ],
 
-    // Time slots
+    
     TIME_SLOTS: [
         '08:00-09:00', '09:00-10:00', '10:00-11:00', '11:00-12:00',
         '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00',
         '16:00-17:00', '17:00-18:00', '18:00-19:00', '19:00-20:00'
     ],
 
-    // Default values
+    
     DEFAULTS: {
         COURSE_CREDITS: 3,
         CLASS_MAX_STUDENTS: 50,
-        QUIZ_TIME_LIMIT: 60, // minutes
+        QUIZ_TIME_LIMIT: 60, 
         QUIZ_ATTEMPTS_ALLOWED: 1,
         PASSWORD_MIN_LENGTH: 8
     },
 
-    // Regular expressions
+    
     REGEX: {
         EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         PHONE: /^[\+]?[1-9][\d]{0,15}$/,
@@ -162,7 +160,7 @@ const constants = {
         PASSWORD_STRONG: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/
     },
 
-    // Environment types
+    
     ENVIRONMENTS: {
         DEVELOPMENT: 'development',
         PRODUCTION: 'production',

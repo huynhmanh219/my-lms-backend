@@ -1,5 +1,4 @@
-// Models Index - Sequelize Model Relationships
-// This file imports all models and defines their associations
+
 
 const sequelize = require('../config/database');
 
@@ -60,13 +59,13 @@ const defineAssociations = () => {
         as: 'students'
     });
 
-    // Direct associations for StudentCourseSection
+    
     StudentCourseSection.belongsTo(Student, { foreignKey: 'student_id', as: 'student' });
     StudentCourseSection.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
     Student.hasMany(StudentCourseSection, { foreignKey: 'student_id', as: 'enrollments' });
     CourseSection.hasMany(StudentCourseSection, { foreignKey: 'course_section_id', as: 'enrollments' });
 
-    // Subject - Chapter associations
+  
     Subject.hasMany(Chapter, { foreignKey: 'subject_id', as: 'chapters' });
     Chapter.belongsTo(Subject, { foreignKey: 'subject_id', as: 'subject' });
 
@@ -84,10 +83,7 @@ const defineAssociations = () => {
     Lecturer.hasMany(LearningMaterial, { foreignKey: 'uploaded_by', as: 'uploadedMaterials' });
     LearningMaterial.belongsTo(Lecturer, { foreignKey: 'uploaded_by', as: 'uploader' });
 
-    // ================================
-    // QUIZ ASSOCIATIONS - Phase 8
-    // ================================
-    
+
     // Quiz associations
     Subject.hasMany(Quiz, { foreignKey: 'subject_id', as: 'quizzes' });
     Quiz.belongsTo(Subject, { foreignKey: 'subject_id', as: 'subject' });
@@ -98,7 +94,7 @@ const defineAssociations = () => {
     Lecturer.hasMany(Quiz, { foreignKey: 'lecturer_id', as: 'quizzes' });
     Quiz.belongsTo(Lecturer, { foreignKey: 'lecturer_id', as: 'lecturer' });
 
-    // Quiz - Question associations
+
     Quiz.hasMany(Question, { foreignKey: 'quiz_id', as: 'questions', onDelete: 'CASCADE' });
     Question.belongsTo(Quiz, { foreignKey: 'quiz_id', as: 'quiz' });
 
@@ -135,10 +131,10 @@ const defineAssociations = () => {
     Response.belongsTo(Lecturer, { foreignKey: 'graded_by', as: 'grader' });
 };
 
-// Initialize associations
+
 defineAssociations();
 
-// Export database connection and models
+
 module.exports = {
     sequelize,
     Role,

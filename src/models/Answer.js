@@ -1,5 +1,4 @@
-// Answer Model
-// Answer choices for quiz questions
+
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -57,7 +56,7 @@ const Answer = sequelize.define('Answer', {
     ]
 });
 
-// Instance methods
+
 Answer.prototype.isCorrectAnswer = function() {
     return this.is_correct;
 };

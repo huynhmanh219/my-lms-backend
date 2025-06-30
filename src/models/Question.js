@@ -1,5 +1,4 @@
-// Question Model
-// Quiz question model for managing assessment questions
+
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');

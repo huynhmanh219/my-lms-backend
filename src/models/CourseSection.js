@@ -1,5 +1,3 @@
-// CourseSection Model
-// Class/Course Section model
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -86,7 +84,7 @@ const CourseSection = sequelize.define('CourseSection', {
     ]
 });
 
-// Instance methods
+
 CourseSection.prototype.isActive = function() {
     return this.status === 'active';
 };

@@ -1,17 +1,20 @@
-﻿
+﻿// Security Middleware
+// Comprehensive security measures for API protection
+
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const validator = require('validator');
 const sanitizeHtml = require('sanitize-html');
 const path = require('path');
 
-
+// XSS Protection Middleware (custom implementation since xss-clean is deprecated)
 const xssProtection = (req, res, next) => {
     const sanitizeString = (str) => {
         if (typeof str !== 'string') return str;
         
+        // Use sanitize-html to clean the string
         return sanitizeHtml(str, {
-            allowedTags: [],
+            allowedTags: [], // No HTML tags allowed
             allowedAttributes: {},
             disallowedTagsMode: 'discard'
         });
@@ -31,17 +34,17 @@ const xssProtection = (req, res, next) => {
         }
     };
 
-
+    // Sanitize request body
     if (req.body) {
         sanitizeObject(req.body);
     }
 
-
+    // Sanitize query parameters
     if (req.query) {
         sanitizeObject(req.query);
     }
 
-
+    // Sanitize URL parameters
     if (req.params) {
         sanitizeObject(req.params);
     }
@@ -49,32 +52,33 @@ const xssProtection = (req, res, next) => {
     next();
 };
 
-
+// SQL Injection Prevention
 const sqlInjectionProtection = (req, res, next) => {
     const checkForSQLInjection = (value, fieldName = '', route = '') => {
         if (typeof value !== 'string') return false;
         
-
+        // Allow markdown content in lecture content fields
         const contentFields = ['content', 'description', 'message'];
         const lectureRoutes = ['/api/lectures', '/api/materials'];
         
         if (contentFields.includes(fieldName) && 
             lectureRoutes.some(routePattern => route.startsWith(routePattern))) {
-
+            // For content fields in lecture routes, use more relaxed patterns
+            // Only check for actual dangerous SQL injection patterns
             const strictSqlPatterns = [
                 /(\bunion\b|\bselect\b|\binsert\b|\bdelete\b|\bdrop\b|\bcreate\b|\balter\b|\bupdate\b)\s+.*\s+(\bfrom\b|\binto\b|\bwhere\b|\bset\b)/i,
-                /['"']\s*;\s*(drop|insert|delete|update|create|alter)/i,
+                /['"]\s*;\s*(drop|insert|delete|update|create|alter)/i,
                 /(\bor\b|\band\b)\s+\d+\s*=\s*\d+\s*(--|\#)/i,
-                /['"']\s*(or|and)\s+['"']\s*=\s*['"']/i
+                /['"]\s*(or|and)\s+['"]\s*=\s*['"]/i
             ];
             return strictSqlPatterns.some(pattern => pattern.test(value));
         } else {
-
+            // For other fields, use the original strict patterns
             const sqlInjectionPatterns = [
                 /(\bunion\b|\bselect\b|\binsert\b|\bdelete\b|\bdrop\b|\bcreate\b|\balter\b|\bupdate\b)/i,
                 /(\bor\b|\band\b)\s+\d+\s*=\s*\d+/i,
-                /['"']\s*(or|and)\s+['"']/i,
-                /['"']\s*;\s*(drop|insert|delete|update|create|alter)/i,
+                /['"]\s*(or|and)\s+['"]/i,
+                /['"]\s*;\s*(drop|insert|delete|update|create|alter)/i,
                 /\/\*|\*\//,
                 /--/,
                 /#/
@@ -100,7 +104,7 @@ const sqlInjectionProtection = (req, res, next) => {
 
     const currentRoute = req.path || req.url;
 
-
+    // Check all input sources for SQL injection attempts
     if (checkObject(req.body, currentRoute) || 
         checkObject(req.query, currentRoute) || 
         checkObject(req.params, currentRoute)) {
@@ -114,8 +118,7 @@ const sqlInjectionProtection = (req, res, next) => {
     next();
 };
 
-
-
+// File Upload Security Middleware
 const fileUploadSecurity = (req, res, next) => {
     if (!req.file && !req.files) {
         return next();
@@ -132,7 +135,7 @@ const fileUploadSecurity = (req, res, next) => {
         'text/plain'
     ];
 
-    const maxFileSize = 50 * 1024 * 1024;
+    const maxFileSize = 50 * 1024 * 1024; // 50MB
 
     const validateFile = (file) => {
         if (file.size > maxFileSize) {
@@ -164,11 +167,13 @@ const fileUploadSecurity = (req, res, next) => {
     }
 };
 
+// Request Size Limiting
 const requestSizeLimiter = (req, res, next) => {
-    const maxBodySize = 10 * 1024 * 1024;
+    const maxBodySize = 10 * 1024 * 1024; // 10MB
     const maxQueryParams = 100;
-    const maxHeaderSize = 8192;
+    const maxHeaderSize = 8192; // 8KB
 
+    // Check body size (already handled by express.json limit, but double-check)
     if (req.get('content-length') && parseInt(req.get('content-length')) > maxBodySize) {
         return res.status(413).json({
             status: 'error',
@@ -177,6 +182,7 @@ const requestSizeLimiter = (req, res, next) => {
         });
     }
 
+    // Check number of query parameters
     if (Object.keys(req.query).length > maxQueryParams) {
         return res.status(400).json({
             status: 'error',
@@ -185,6 +191,7 @@ const requestSizeLimiter = (req, res, next) => {
         });
     }
 
+    // Check header size
     const headerSize = JSON.stringify(req.headers).length;
     if (headerSize > maxHeaderSize) {
         return res.status(400).json({
@@ -197,6 +204,7 @@ const requestSizeLimiter = (req, res, next) => {
     next();
 };
 
+// Input Sanitization for specific fields
 const sanitizeInput = (req, res, next) => {
     const sanitizeEmail = (email) => {
         if (!email || typeof email !== 'string') return email;
@@ -213,11 +221,13 @@ const sanitizeInput = (req, res, next) => {
         return isNaN(numId) || numId <= 0 ? null : numId;
     };
 
+    // Sanitize common fields
     if (req.body) {
         if (req.body.email) {
             req.body.email = sanitizeEmail(req.body.email);
         }
         
+        // Sanitize numeric IDs (but not student_id in body as it's a student code string)
         ['id', 'user_id', 'lecturer_id', 'subject_id', 'course_id', 'chapter_id', 'quiz_id'].forEach(field => {
             if (req.body[field]) {
                 req.body[field] = sanitizeNumericId(req.body[field]);
@@ -236,17 +246,23 @@ const sanitizeInput = (req, res, next) => {
     next();
 };
 
+// Security Headers Middleware
 const securityHeaders = (req, res, next) => {
+    // Additional security headers beyond Helmet
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    
+    // Remove server information
     res.removeHeader('X-Powered-By');
+    
     next();
 };
 
+// MongoDB sanitization wrapper
 const mongoSanitization = mongoSanitize({
     replaceWith: '_',
     onSanitize: ({ req, key }) => {
@@ -254,8 +270,9 @@ const mongoSanitization = mongoSanitize({
     }
 });
 
+// HTTP Parameter Pollution protection
 const hppProtection = hpp({
-    whitelist: ['sort', 'fields', 'page', 'limit', 'search']
+    whitelist: ['sort', 'fields', 'page', 'limit', 'search'] // Allow these parameters to be arrays
 });
 
 module.exports = {
@@ -267,5 +284,4 @@ module.exports = {
     securityHeaders,
     mongoSanitization,
     hppProtection
-};
-
+}; 

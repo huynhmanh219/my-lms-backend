@@ -1,5 +1,4 @@
-// Lecture Model
-// Individual lecture content model
+
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -67,7 +66,7 @@ const Lecture = sequelize.define('Lecture', {
     ]
 });
 
-// Instance methods
+
 Lecture.prototype.isPublished = function() {
     return this.is_published;
 };

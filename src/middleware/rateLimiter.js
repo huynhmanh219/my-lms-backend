@@ -1,17 +1,14 @@
-// Rate Limiting Middleware
-// API rate limiting to prevent abuse
 
 const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
 const { logSecurity } = require('../services/loggerService');
 
-// Enhanced general API rate limit with logging
-// Use more generous limits in development
 const isDevelopment = process.env.NODE_ENV === 'development';
 
+
 const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: isDevelopment ? 10000 : 100, // 1000 for dev, 100 for production
+    windowMs: 15 * 60 * 1000,
+    max: isDevelopment ? 10000 : 100,
     message: {
         status: 'error',
         message: 'Too many requests from this IP, please try again later.',
@@ -32,19 +29,17 @@ const generalLimiter = rateLimit({
         });
     },
     skip: (req) => {
-        // Skip rate limiting for health checks and optionally for localhost in dev
         if (req.path === '/health') return true;
         if (isDevelopment && (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip.includes('192.168'))) {
-            return true; // Skip rate limiting for local IPs in development
+            return true;
         }
         return false;
     }
 });
 
-// Strict rate limit for authentication endpoints
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: isDevelopment ? 50 : 5, // 50 for dev, 5 for production
+    windowMs: 15 * 60 * 1000,
+    max: isDevelopment ? 50 : 5,
     message: {
         status: 'error',
         message: 'Too many authentication attempts, please try again later.',
@@ -52,7 +47,7 @@ const authLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    skipSuccessfulRequests: true, // Don't count successful requests
+    skipSuccessfulRequests: true,
     handler: (req, res) => {
         logSecurity.rateLimitExceeded(
             req.ip, 
@@ -66,7 +61,6 @@ const authLimiter = rateLimit({
         });
     },
     skip: (req) => {
-        // Skip auth rate limiting for local IPs in development
         if (isDevelopment && (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip.includes('192.168'))) {
             return true;
         }
@@ -74,10 +68,9 @@ const authLimiter = rateLimit({
     }
 });
 
-// Moderate rate limit for file uploads
 const uploadLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 50, // limit each IP to 50 uploads per hour
+    windowMs: 60 * 60 * 1000,
+    max: 50,
     message: {
         status: 'error',
         message: 'Too many file uploads, please try again later.',
@@ -99,10 +92,9 @@ const uploadLimiter = rateLimit({
     }
 });
 
-// Quiz attempt rate limit
 const quizLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // limit each IP to 10 quiz attempts per hour
+    windowMs: 60 * 60 * 1000,
+    max: 10,
     message: {
         status: 'error',
         message: 'Too many quiz attempts, please try again later.',
@@ -124,10 +116,9 @@ const quizLimiter = rateLimit({
     }
 });
 
-// Password reset rate limit
 const passwordResetLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 3, // limit each IP to 3 password reset requests per hour
+    windowMs: 60 * 60 * 1000,
+    max: 3,
     message: {
         status: 'error',
         message: 'Too many password reset attempts, please try again later.',
@@ -149,19 +140,17 @@ const passwordResetLimiter = rateLimit({
     }
 });
 
-// Speed limiter for API endpoints (fixed for v2 compatibility)
 const speedLimiter = slowDown({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    delayAfter: 10, // Allow 10 requests per window without delay
-    delayMs: () => 500, // New syntax: fixed delay per request
-    maxDelayMs: 20000, // Maximum delay of 20 seconds
-    validate: { delayMs: false } // Disable validation warning
+    windowMs: 15 * 60 * 1000,
+    delayAfter: 10,
+    delayMs: () => 500,
+    maxDelayMs: 20000,
+    validate: { delayMs: false }
 });
 
-// Strict rate limit for user creation
 const userCreationLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 5, // limit each IP to 5 user creation requests per hour
+    windowMs: 60 * 60 * 1000,
+    max: 5,
     message: {
         status: 'error',
         message: 'Too many user creation attempts, please try again later.',
@@ -183,13 +172,11 @@ const userCreationLimiter = rateLimit({
     }
 });
 
-// API key based rate limiting for potential external integrations
 const createKeyBasedLimiter = (maxRequests, windowMs) => {
     return rateLimit({
         windowMs,
         max: maxRequests,
         keyGenerator: (req) => {
-            // Use API key if present, otherwise fall back to IP
             return req.headers['x-api-key'] || req.ip;
         },
         message: {

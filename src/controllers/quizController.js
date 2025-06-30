@@ -1,16 +1,11 @@
-// Quiz Controller
-// Handles quiz management operations: quizzes, questions, attempts, results
 
 const { Quiz, Question, Answer, Submission, Response, Subject, CourseSection, Lecturer, Student, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { getOffsetLimit, getPaginationData, getPagingData } = require('../services/paginationService');
 
 const quizController = {
-    // ================================
-    // QUIZ MANAGEMENT (7 APIs)
-    // ================================
 
-    // GET /quizzes - Get all quizzes with pagination and filtering
+    // GET /quizzes 
     getQuizzes: async (req, res, next) => {
         try {
             const { page = 1, size = 10, search, subject_id, status, lecturer_id } = req.query;
@@ -54,7 +49,7 @@ const quizController = {
         }
     },
 
-    // GET /quizzes/:id - Get single quiz
+    // GET /quizzes/:id 
     getQuiz: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -96,7 +91,7 @@ const quizController = {
         }
     },
 
-    // POST /quizzes - Create new quiz
+    // POST /quizzes 
     createQuiz: async (req, res, next) => {
         try {
             const {
@@ -172,7 +167,7 @@ const quizController = {
         }
     },
 
-    // PUT /quizzes/:id - Update quiz
+    // PUT /quizzes/:id 
     updateQuiz: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -186,7 +181,6 @@ const quizController = {
                 });
             }
 
-            // Don't allow updates to published quizzes with submissions
             if (quiz.status === 'published') {
                 const submissionCount = await Submission.count({ where: { quiz_id: id } });
                 if (submissionCount > 0) {
@@ -216,7 +210,7 @@ const quizController = {
         }
     },
 
-    // DELETE /quizzes/:id - Delete quiz
+    // DELETE /quizzes/:id 
     deleteQuiz: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -229,7 +223,6 @@ const quizController = {
                 });
             }
 
-            // Check if quiz has submissions
             const submissionCount = await Submission.count({ where: { quiz_id: id } });
             if (submissionCount > 0) {
                 return res.status(400).json({
@@ -249,7 +242,7 @@ const quizController = {
         }
     },
 
-    // POST /quizzes/:id/publish - Publish quiz
+    // POST /quizzes/:id/publish 
     publishQuiz: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -291,7 +284,7 @@ const quizController = {
         }
     },
 
-    // POST /quizzes/:id/close - Close quiz
+    // POST /quizzes/:id/close 
     closeQuiz: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -311,7 +304,6 @@ const quizController = {
                 });
             }
 
-            // Auto-submit any in-progress submissions
             await Submission.update(
                 { status: 'submitted', submitted_at: new Date() },
                 { where: { quiz_id: id, status: 'in_progress' } }
@@ -329,11 +321,7 @@ const quizController = {
         }
     },
 
-    // ================================
-    // QUESTION MANAGEMENT (7 APIs)
-    // ================================
-
-    // GET /quizzes/:id/questions - Get questions for a quiz
+    // GET /quizzes/:id/questions 
     getQuizQuestions: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -377,7 +365,7 @@ const quizController = {
         }
     },
 
-    // GET /questions/:id - Get single question
+    // GET /questions/:id 
     getQuestion: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -415,7 +403,7 @@ const quizController = {
         }
     },
 
-    // POST /questions - Create new question
+    // POST /questions 
     createQuestion: async (req, res, next) => {
         try {
             const {
@@ -431,7 +419,6 @@ const quizController = {
                 answers = []
             } = req.body;
 
-            // Validate quiz exists and is editable
             const quiz = await Quiz.findByPk(quiz_id);
             if (!quiz) {
                 return res.status(404).json({
@@ -450,7 +437,6 @@ const quizController = {
                 }
             }
 
-            // Set order index if not provided
             let finalOrderIndex = order_index;
             if (!finalOrderIndex) {
                 const maxOrder = await Question.max('order_index', { where: { quiz_id } });
@@ -460,7 +446,6 @@ const quizController = {
             const transaction = await sequelize.transaction();
 
             try {
-                // Create question
                 const question = await Question.create({
                     quiz_id,
                     question_text,
@@ -473,7 +458,6 @@ const quizController = {
                     time_limit
                 }, { transaction });
 
-                // Create answers if provided
                 if (answers.length > 0) {
                     const answerData = answers.map((answer, index) => ({
                         question_id: question.id,
@@ -487,7 +471,6 @@ const quizController = {
                     await Answer.bulkCreate(answerData, { transaction });
                 }
 
-                // Update quiz total points
                 const totalPoints = await Question.sum('points', { 
                     where: { quiz_id },
                     transaction
@@ -496,7 +479,6 @@ const quizController = {
 
                 await transaction.commit();
 
-                // Fetch complete question with answers
                 const createdQuestion = await Question.findByPk(question.id, {
                     include: [
                         {
@@ -521,7 +503,7 @@ const quizController = {
         }
     },
 
-    // PUT /questions/:id - Update question
+    // PUT /questions/:id 
     updateQuestion: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -548,7 +530,6 @@ const quizController = {
                 });
             }
 
-            // Check if quiz allows editing
             if (question.quiz.status === 'published') {
                 const submissionCount = await Submission.count({ 
                     where: { quiz_id: question.quiz_id } 
@@ -564,7 +545,6 @@ const quizController = {
             const transaction = await sequelize.transaction();
 
             try {
-                // Update question
                 await question.update({
                     question_text: question_text || question.question_text,
                     question_type: question_type || question.question_type,
@@ -576,15 +556,12 @@ const quizController = {
                     time_limit: time_limit !== undefined ? time_limit : question.time_limit
                 }, { transaction });
 
-                // Update answers if provided
                 if (answers && Array.isArray(answers)) {
-                    // Delete existing answers
                     await Answer.destroy({ 
                         where: { question_id: id },
                         transaction
                     });
 
-                    // Create new answers
                     if (answers.length > 0) {
                         const answerData = answers.map((answer, index) => ({
                             question_id: id,
@@ -599,7 +576,6 @@ const quizController = {
                     }
                 }
 
-                // Update quiz total points
                 const totalPoints = await Question.sum('points', { 
                     where: { quiz_id: question.quiz_id },
                     transaction
@@ -611,7 +587,6 @@ const quizController = {
 
                 await transaction.commit();
 
-                // Fetch updated question with answers
                 const updatedQuestion = await Question.findByPk(id, {
                     include: [
                         {
@@ -636,7 +611,7 @@ const quizController = {
         }
     },
 
-    // DELETE /questions/:id - Delete question
+    // DELETE /questions/:id 
     deleteQuestion: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -652,7 +627,6 @@ const quizController = {
                 });
             }
 
-            // Check if quiz allows editing
             if (question.quiz.status === 'published') {
                 const submissionCount = await Submission.count({ 
                     where: { quiz_id: question.quiz_id } 
@@ -670,7 +644,6 @@ const quizController = {
             try {
                 await question.destroy({ transaction });
 
-                // Update quiz total points
                 const totalPoints = await Question.sum('points', { 
                     where: { quiz_id: question.quiz_id },
                     transaction
@@ -695,7 +668,7 @@ const quizController = {
         }
     },
 
-    // POST /questions/import - Import questions from file
+    // POST /questions/import 
     importQuestions: async (req, res, next) => {
         try {
             if (!req.file) {
@@ -707,7 +680,6 @@ const quizController = {
 
             const { quiz_id } = req.body;
 
-            // Validate quiz exists
             const quiz = await Quiz.findByPk(quiz_id);
             if (!quiz) {
                 return res.status(404).json({
@@ -716,9 +688,6 @@ const quizController = {
                 });
             }
 
-            // TODO: Implement file parsing (CSV/JSON format)
-            // This would parse the uploaded file and create questions
-            
             res.status(201).json({
                 success: true,
                 message: 'Questions imported successfully (implementation pending)',
@@ -733,7 +702,7 @@ const quizController = {
         }
     },
 
-    // GET /questions/export - Export questions to file
+    // GET /questions/export 
     exportQuestions: async (req, res, next) => {
         try {
             const { quiz_id, format = 'json' } = req.query;
@@ -778,11 +747,7 @@ const quizController = {
         }
     },
 
-    // ================================
-    // QUIZ ATTEMPT SYSTEM (6 APIs)
-    // ================================
-
-    // GET /quizzes/:id/start - Start quiz attempt
+    // GET /quizzes/:id/start 
     startQuiz: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -820,7 +785,6 @@ const quizController = {
                 });
             }
 
-            // Get student
             const student = await Student.findOne({ where: { account_id: userId } });
             if (!student) {
                 return res.status(403).json({
@@ -829,7 +793,6 @@ const quizController = {
                 });
             }
 
-            // Check previous attempts
             const attemptCount = await Submission.count({
                 where: { quiz_id: id, student_id: student.id }
             });
@@ -841,7 +804,6 @@ const quizController = {
                 });
             }
 
-            // Check for active submission
             const activeSubmission = await Submission.findOne({
                 where: { 
                     quiz_id: id, 
@@ -858,13 +820,11 @@ const quizController = {
                 });
             }
 
-            // Shuffle questions if enabled
             let questions = quiz.questions;
             if (quiz.shuffle_questions) {
                 questions = [...questions].sort(() => Math.random() - 0.5);
             }
 
-            // Shuffle answers if enabled
             if (quiz.shuffle_answers) {
                 questions = questions.map(question => ({
                     ...question.toJSON(),
@@ -906,7 +866,7 @@ const quizController = {
         }
     },
 
-    // POST /quiz-attempts - Create quiz attempt
+    // POST /quiz-attempts 
     createQuizAttempt: async (req, res, next) => {
         try {
             const { quiz_id } = req.body;
@@ -935,7 +895,6 @@ const quizController = {
                 });
             }
 
-            // Check attempts limit
             const attemptCount = await Submission.count({
                 where: { quiz_id, student_id: student.id }
             });
@@ -947,7 +906,6 @@ const quizController = {
                 });
             }
 
-            // Create submission
             const submission = await Submission.create({
                 quiz_id,
                 student_id: student.id,
@@ -971,7 +929,7 @@ const quizController = {
         }
     },
 
-    // GET /quiz-attempts/:id - Get quiz attempt
+    // GET /quiz-attempts/:id 
     getQuizAttempt: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -1028,7 +986,7 @@ const quizController = {
         }
     },
 
-    // PUT /quiz-attempts/:id/answer - Submit answer for question
+    // PUT /quiz-attempts/:id/answer 
     submitAnswer: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -1052,7 +1010,6 @@ const quizController = {
                 });
             }
 
-            // Get question with answers
             const question = await Question.findByPk(question_id, {
                 include: [{ model: Answer, as: 'answers' }]
             });
@@ -1064,7 +1021,6 @@ const quizController = {
                 });
             }
 
-            // Check if answer already exists
             let response = await Response.findOne({
                 where: { submission_id: id, question_id }
             });
@@ -1072,19 +1028,16 @@ const quizController = {
             let isCorrect = false;
             let pointsEarned = 0;
 
-            // Determine correctness and points
             if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
                 const selectedAnswer = question.answers.find(a => a.id === answer_id);
                 isCorrect = selectedAnswer?.is_correct || false;
                 pointsEarned = isCorrect ? question.points : 0;
             } else {
-                // For essay/short answer, mark as needing manual grading
                 isCorrect = null;
                 pointsEarned = null;
             }
 
             if (response) {
-                // Update existing response
                 await response.update({
                     answer_id,
                     answer_text,
@@ -1094,7 +1047,6 @@ const quizController = {
                     attempt_count: response.attempt_count + 1
                 });
             } else {
-                // Create new response
                 response = await Response.create({
                     submission_id: id,
                     question_id,
@@ -1120,7 +1072,7 @@ const quizController = {
         }
     },
 
-    // POST /quiz-attempts/:id/flag - Flag question during attempt
+    // POST /quiz-attempts/:id/flag 
     flagQuestion: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -1141,13 +1093,11 @@ const quizController = {
                 });
             }
 
-            // Flag the response
             await Response.update(
                 { is_flagged: true },
                 { where: { submission_id: id, question_id } }
             );
 
-            // Flag the submission if not already flagged
             if (!submission.is_flagged) {
                 await submission.update({
                     is_flagged: true,
@@ -1164,7 +1114,7 @@ const quizController = {
         }
     },
 
-    // GET /quiz-attempts/:id/progress - Get quiz attempt progress
+    // GET /quiz-attempts/:id/progress 
     getQuizProgress: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -1201,7 +1151,6 @@ const quizController = {
             const answeredQuestions = submission.responses.length;
             const progressPercentage = totalQuestions > 0 ? (answeredQuestions / totalQuestions * 100).toFixed(1) : 0;
 
-            // Calculate current score (for auto-graded questions only)
             const autoGradedResponses = submission.responses.filter(r => r.is_correct !== null);
             const currentScore = autoGradedResponses.reduce((sum, r) => sum + (r.points_earned || 0), 0);
 
@@ -1226,11 +1175,7 @@ const quizController = {
         }
     },
 
-    // ================================
-    // RESULTS & ANALYTICS (5 APIs)
-    // ================================
-
-    // GET /quizzes/:id/results - Get quiz results (for lecturers)
+    // GET /quizzes/:id/results 
     getQuizResults: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -1261,7 +1206,6 @@ const quizController = {
 
             const response = getPagingData(submissions, page, limit);
 
-            // Add formatted data
             response.data = response.data.map(submission => {
                 const data = submission.toJSON();
                 data.time_spent_formatted = submission.getTimeSpentFormatted();
@@ -1269,7 +1213,6 @@ const quizController = {
                 return data;
             });
 
-            // Calculate statistics
             const allSubmissions = await Submission.findAll({
                 where: { quiz_id: id, status: { [Op.in]: ['submitted', 'graded'] } },
                 attributes: ['score', 'percentage', 'time_spent']
@@ -1296,7 +1239,7 @@ const quizController = {
         }
     },
 
-    // GET /quiz-attempts/:id/result - Get single attempt result
+    // GET /quiz-attempts/:id/result 
     getAttemptResult: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -1362,7 +1305,7 @@ const quizController = {
         }
     },
 
-    // GET /quiz-attempts/my-attempts - Get user's quiz attempts
+    // GET /quiz-attempts/my-attempts 
     getMyAttempts: async (req, res, next) => {
         try {
             const { page = 1, size = 10, status } = req.query;
@@ -1424,7 +1367,7 @@ const quizController = {
         }
     },
 
-    // GET /quizzes/:id/statistics - Get quiz statistics
+    // GET /quizzes/:id/statistics 
     getQuizStatistics: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -1446,7 +1389,6 @@ const quizController = {
                 });
             }
 
-            // Get all completed submissions
             const submissions = await Submission.findAll({
                 where: { quiz_id: id, status: { [Op.in]: ['submitted', 'graded'] } },
                 include: [
@@ -1464,7 +1406,6 @@ const quizController = {
                 ]
             });
 
-            // Calculate overall statistics
             const totalSubmissions = submissions.length;
             const averageScore = totalSubmissions > 0 ? 
                 (submissions.reduce((sum, s) => sum + (s.score || 0), 0) / totalSubmissions).toFixed(2) : 0;
@@ -1473,7 +1414,6 @@ const quizController = {
             const passRate = totalSubmissions > 0 && quiz.passing_score ?
                 ((submissions.filter(s => (s.percentage || 0) >= quiz.passing_score).length / totalSubmissions) * 100).toFixed(1) : null;
 
-            // Question-level statistics
             const questionStats = quiz.questions.map(question => {
                 const responses = submissions.flatMap(s => 
                     s.responses.filter(r => r.question_id === question.id)
@@ -1521,7 +1461,7 @@ const quizController = {
         }
     },
 
-    // GET /students/:id/quiz-history - Get student quiz history
+    // GET /students/:id/quiz-history 
     getStudentQuizHistory: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -1568,7 +1508,6 @@ const quizController = {
                 return data;
             });
 
-            // Calculate student statistics
             const allSubmissions = await Submission.findAll({
                 where: { student_id: id, status: { [Op.in]: ['submitted', 'graded'] } }
             });
@@ -1578,8 +1517,7 @@ const quizController = {
                 average_score: allSubmissions.length > 0 ? 
                     (allSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) / allSubmissions.length).toFixed(1) : 0,
                 quizzes_passed: allSubmissions.filter(s => {
-                    // This would need quiz data to determine pass/fail
-                    return (s.percentage || 0) >= 60; // Assuming 60% as default passing
+                        return (s.percentage || 0) >= 60;
                 }).length
             };
 

@@ -1,5 +1,4 @@
-// Lecturer Model
-// Lecturer profile model linked to Account
+
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -73,7 +72,6 @@ const Lecturer = sequelize.define('Lecturer', {
     ]
 });
 
-// Instance methods
 Lecturer.prototype.getFullName = function() {
     return `${this.first_name} ${this.last_name}`;
 };

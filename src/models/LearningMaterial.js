@@ -1,5 +1,3 @@
-// LearningMaterial Model
-// Course materials and file uploads model
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -89,7 +87,7 @@ const LearningMaterial = sequelize.define('LearningMaterial', {
     ]
 });
 
-// Instance methods
+
 LearningMaterial.prototype.getFileSizeFormatted = function() {
     if (!this.file_size) return null;
     

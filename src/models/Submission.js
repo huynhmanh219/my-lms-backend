@@ -1,5 +1,3 @@
-// Submission Model
-// Student quiz attempts and submissions
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -113,7 +111,6 @@ const Submission = sequelize.define('Submission', {
     ]
 });
 
-// Instance methods
 Submission.prototype.isInProgress = function() {
     return this.status === 'in_progress';
 };

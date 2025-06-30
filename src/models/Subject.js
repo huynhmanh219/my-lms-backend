@@ -1,5 +1,4 @@
-// Subject Model
-// Course/Subject model
+
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -79,7 +78,6 @@ const Subject = sequelize.define('Subject', {
     ]
 });
 
-// Instance methods
 Subject.prototype.getFullCode = function() {
     return `${this.subject_code} - ${this.subject_name}`;
 };

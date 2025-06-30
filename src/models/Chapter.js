@@ -1,5 +1,3 @@
-// Chapter Model
-// Course content organization model
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -52,7 +50,7 @@ const Chapter = sequelize.define('Chapter', {
     ]
 });
 
-// Instance methods
+
 Chapter.prototype.isActive = function() {
     return this.status === 'active';
 };

@@ -1,30 +1,22 @@
-// Helper Utilities
-// Common utility functions
-
 const crypto = require('crypto');
 
 const helpers = {
-    // Generate random string
     generateRandomString: (length = 10) => {
         return crypto.randomBytes(length).toString('hex').slice(0, length);
     },
 
-    // Generate UUID
     generateUUID: () => {
         return crypto.randomUUID();
     },
 
-    // Capitalize first letter
     capitalize: (str) => {
         return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
     },
 
-    // Format name (capitalize each word)
     formatName: (name) => {
         return name.split(' ').map(helpers.capitalize).join(' ');
     },
 
-    // Format phone number
     formatPhone: (phone) => {
         const cleaned = phone.replace(/\D/g, '');
         if (cleaned.length === 10) {
@@ -33,7 +25,6 @@ const helpers = {
         return phone;
     },
 
-    // Calculate age from birth date
     calculateAge: (birthDate) => {
         const today = new Date();
         const birth = new Date(birthDate);
@@ -47,7 +38,6 @@ const helpers = {
         return age;
     },
 
-    // Format date to readable string
     formatDate: (date, format = 'YYYY-MM-DD') => {
         const d = new Date(date);
         const year = d.getFullYear();
@@ -66,7 +56,6 @@ const helpers = {
         }
     },
 
-    // Format time duration (seconds to HH:MM:SS)
     formatDuration: (seconds) => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
@@ -75,13 +64,11 @@ const helpers = {
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     },
 
-    // Calculate quiz score percentage
     calculatePercentage: (obtained, total) => {
         if (total === 0) return 0;
         return Math.round((obtained / total) * 100);
     },
 
-    // Generate grade from percentage
     getGradeFromPercentage: (percentage) => {
         if (percentage >= 90) return 'A';
         if (percentage >= 80) return 'B';
@@ -90,12 +77,10 @@ const helpers = {
         return 'F';
     },
 
-    // Deep clone object
     deepClone: (obj) => {
         return JSON.parse(JSON.stringify(obj));
     },
 
-    // Remove null/undefined values from object
     cleanObject: (obj) => {
         const cleaned = {};
         Object.keys(obj).forEach(key => {
@@ -106,22 +91,19 @@ const helpers = {
         return cleaned;
     },
 
-    // Convert string to slug
-    createSlug: (str) => {
-        return str
-            .toLowerCase()
-            .replace(/[^\w\s-]/g, '')
-            .replace(/[\s_-]+/g, '-')
-            .replace(/^-+|-+$/g, '');
-    },
+    // createSlug: (str) => {
+    //     return str
+    //         .toLowerCase()
+    //         .replace(/[^\w\s-]/g, '')
+    //         .replace(/[\s_-]+/g, '-')
+    //         .replace(/^-+|-+$/g, '');
+    // },
 
-    // Truncate text
     truncateText: (text, maxLength, suffix = '...') => {
         if (text.length <= maxLength) return text;
         return text.slice(0, maxLength - suffix.length) + suffix;
     },
 
-    // Check if value is empty
     isEmpty: (value) => {
         if (value === null || value === undefined) return true;
         if (typeof value === 'string') return value.trim().length === 0;
@@ -130,12 +112,10 @@ const helpers = {
         return false;
     },
 
-    // Generate random number in range
     randomNumber: (min, max) => {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     },
 
-    // Shuffle array
     shuffleArray: (array) => {
         const shuffled = [...array];
         for (let i = shuffled.length - 1; i > 0; i--) {
@@ -145,7 +125,6 @@ const helpers = {
         return shuffled;
     },
 
-    // Sort array of objects by property
     sortByProperty: (array, property, ascending = true) => {
         return array.sort((a, b) => {
             const aVal = a[property];

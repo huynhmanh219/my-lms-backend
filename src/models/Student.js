@@ -1,5 +1,3 @@
-// Student Model
-// Student profile model linked to Account
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -75,7 +73,6 @@ const Student = sequelize.define('Student', {
     ]
 });
 
-// Instance methods
 Student.prototype.getFullName = function() {
     return `${this.first_name} ${this.last_name}`;
 };

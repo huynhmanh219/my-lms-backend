@@ -1,5 +1,3 @@
-// Course Controller
-// Handles course management operations: subjects, classes, enrollment
 
 const { Subject, CourseSection, StudentCourseSection, Account, Student, Lecturer, Role } = require('../models');
 const paginationService = require('../services/paginationService');
@@ -8,16 +6,13 @@ const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 
 const courseController = {
-    // ==========================================
-    // SUBJECT MANAGEMENT (6 APIs)
-    // ==========================================
+ 
 
-    // GET /courses - Get subjects with pagination
+    // GET /courses     
     getCourses: async (req, res, next) => {
         try {
             const { page = 1, limit = 10, search, lecturer_id, department, sort = 'created_at', order = 'desc' } = req.query;
 
-            // Build search conditions
             const whereConditions = {};
 
             if (search) {
@@ -36,7 +31,6 @@ const courseController = {
                 whereConditions.department = { [Op.like]: `%${department}%` };
             }
 
-            // Get paginated results
             const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
 
             const { count, rows } = await Subject.findAndCountAll({
@@ -119,7 +113,7 @@ const courseController = {
         }
     },
 
-    // POST /courses - Create subject
+    // POST /courses 
     createCourse: async (req, res, next) => {
         try {
             const { 
@@ -132,13 +126,11 @@ const courseController = {
                 academic_year 
             } = req.body;
 
-            // Verify lecturer exists
             const lecturer = await Lecturer.findByPk(lecturer_id);
             if (!lecturer) {
                 throw new ValidationError('Lecturer not found');
             }
 
-            // Check if course code already exists
             const existingCourse = await Subject.findOne({ where: { subject_code } });
             if (existingCourse) {
                 throw new ValidationError('Course code already exists');
@@ -154,7 +146,6 @@ const courseController = {
                 academic_year
             });
 
-            // Fetch created course with lecturer info
             const createdCourse = await Subject.findByPk(course.id, {
                 include: [
                     {
@@ -177,7 +168,7 @@ const courseController = {
         }
     },
 
-    // PUT /courses/:id - Update course
+    // PUT /courses/:id 
     updateCourse: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -196,7 +187,6 @@ const courseController = {
                 throw new NotFoundError('Course not found');
             }
 
-            // Verify lecturer exists if changing
             if (lecturer_id && lecturer_id !== course.lecturer_id) {
                 const lecturer = await Lecturer.findByPk(lecturer_id);
                 if (!lecturer) {
@@ -204,7 +194,6 @@ const courseController = {
                 }
             }
 
-            // Check if course code already exists (if changing)
             if (subject_code && subject_code !== course.subject_code) {
                 const existingCourse = await Subject.findOne({ where: { subject_code } });
                 if (existingCourse) {
@@ -222,7 +211,6 @@ const courseController = {
                 academic_year: academic_year || course.academic_year
             });
 
-            // Fetch updated course with lecturer info
             const updatedCourse = await Subject.findByPk(id, {
                 include: [
                     {
@@ -245,7 +233,7 @@ const courseController = {
         }
     },
 
-    // DELETE /courses/:id - Delete course
+    // DELETE /courses/:id 
     deleteCourse: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -255,7 +243,6 @@ const courseController = {
                 throw new NotFoundError('Course not found');
             }
 
-            // Check if course has active course sections
             const activeSections = await CourseSection.findAll({ where: { subject_id: id } });
             if (activeSections.length > 0) {
                 throw new ValidationError('Cannot delete course with active sections. Please remove sections first.');
@@ -272,7 +259,7 @@ const courseController = {
         }
     },
 
-    // GET /courses/:id/students - Get students enrolled in course (across all sections)
+            // GET /courses/:id/students 
     getCourseStudents: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -285,7 +272,6 @@ const courseController = {
 
             const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
 
-            // Get students enrolled in any section of this course
             const { count, rows } = await Student.findAndCountAll({
                 include: [
                     {
@@ -328,16 +314,11 @@ const courseController = {
         }
     },
 
-    // ==========================================
-    // CLASS MANAGEMENT (5 APIs)
-    // ==========================================
-
-    // GET /classes - Get course sections
+    // GET /classes 
     getClasses: async (req, res, next) => {
         try {
             const { page = 1, limit = 10, search, subject_id, lecturer_id, sort = 'created_at', order = 'desc' } = req.query;
 
-            // Build search conditions
             const whereConditions = {};
 
             if (search) {
@@ -377,7 +358,6 @@ const courseController = {
                 distinct: true
             });
 
-            // Add enrollment count for each class
             const classesWithCount = await Promise.all(rows.map(async (cls) => {
                 const enrollmentCount = await StudentCourseSection.count({
                     where: { course_section_id: cls.id }
@@ -403,7 +383,7 @@ const courseController = {
         }
     },
 
-    // GET /classes/:id - Get single class
+    // GET /classes/:id 
     getClass: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -434,7 +414,6 @@ const courseController = {
                 throw new NotFoundError('Class not found');
             }
 
-            // Get enrollment count
             const enrollmentCount = await StudentCourseSection.count({
                 where: { course_section_id: id }
             });
@@ -454,7 +433,7 @@ const courseController = {
         }
     },
 
-    // POST /classes - Create class
+    // POST /classes 
     createClass: async (req, res, next) => {
         try {
             const { 
@@ -468,19 +447,16 @@ const courseController = {
                 room 
             } = req.body;
 
-            // Verify subject exists
             const subject = await Subject.findByPk(subject_id);
             if (!subject) {
                 throw new ValidationError('Subject not found');
             }
 
-            // Verify lecturer exists
             const lecturer = await Lecturer.findByPk(lecturer_id);
             if (!lecturer) {
                 throw new ValidationError('Lecturer not found');
             }
 
-            // Check if section name already exists for this subject
             const existingSection = await CourseSection.findOne({
                 where: { subject_id, section_name }
             });
@@ -499,7 +475,6 @@ const courseController = {
                 room
             });
 
-            // Fetch created class with related data
             const createdClass = await CourseSection.findByPk(courseSection.id, {
                 include: [
                     {
@@ -527,12 +502,12 @@ const courseController = {
         }
     },
 
-    // PUT /classes/:id - Update class
+    // PUT /classes/:id 
     updateClass: async (req, res, next) => {
         try {
             const { id } = req.params;
             const { 
-                lecturer_id, 
+                lecturer_id,        
                 section_name, 
                 max_students, 
                 start_date, 
@@ -546,7 +521,6 @@ const courseController = {
                 throw new NotFoundError('Class not found');
             }
 
-            // Verify lecturer exists if changing
             if (lecturer_id && lecturer_id !== courseSection.lecturer_id) {
                 const lecturer = await Lecturer.findByPk(lecturer_id);
                 if (!lecturer) {
@@ -554,7 +528,6 @@ const courseController = {
                 }
             }
 
-            // Check capacity constraint
             if (max_students !== undefined) {
                 const enrollmentCount = await StudentCourseSection.count({
                     where: { course_section_id: id }
@@ -574,7 +547,6 @@ const courseController = {
                 room: room || courseSection.room
             });
 
-            // Fetch updated class with related data
             const updatedClass = await CourseSection.findByPk(id, {
                 include: [
                     {
@@ -602,7 +574,7 @@ const courseController = {
         }
     },
 
-    // DELETE /classes/:id - Delete class
+    // DELETE /classes/:id 
     deleteClass: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -612,7 +584,6 @@ const courseController = {
                 throw new NotFoundError('Class not found');
             }
 
-            // Check if class has enrolled students
             const enrollmentCount = await StudentCourseSection.count({
                 where: { course_section_id: id }
             });
@@ -631,11 +602,7 @@ const courseController = {
         }
     },
 
-    // ==========================================
-    // ENROLLMENT MANAGEMENT (7 APIs)
-    // ==========================================
-
-    // GET /classes/:id/students - Get students in a class
+    // GET /classes/:id/students 
     getClassStudents: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -683,7 +650,7 @@ const courseController = {
         }
     },
 
-    // POST /classes/:id/students - Enroll students to class
+    // POST /classes/:id/students 
     enrollStudents: async (req, res, next) => {
         const transaction = await sequelize.transaction();
         
@@ -700,7 +667,6 @@ const courseController = {
                 throw new NotFoundError('Class not found');
             }
 
-            // Check capacity
             const currentEnrollment = await StudentCourseSection.count({
                 where: { course_section_id: id }
             });
@@ -716,14 +682,12 @@ const courseController = {
 
             for (const student_id of student_ids) {
                 try {
-                    // Check if student exists
                     const student = await Student.findByPk(student_id);
                     if (!student) {
                         results.failed.push({ student_id, error: 'Student not found' });
                         continue;
                     }
 
-                    // Check if already enrolled
                     const existingEnrollment = await StudentCourseSection.findOne({
                         where: { student_id, course_section_id: id }
                     });
@@ -732,12 +696,11 @@ const courseController = {
                         continue;
                     }
 
-                    // Enroll student
                     await StudentCourseSection.create({
                         student_id,
                         course_section_id: id,
                         enrollment_date: new Date(),
-                        status: 'active'
+                        status: 'enrolled'
                     }, { transaction });
 
                     results.successful.push({ student_id, status: 'enrolled' });
@@ -766,7 +729,7 @@ const courseController = {
         }
     },
 
-    // DELETE /classes/:id/students/:studentId - Remove student from class
+    // DELETE /classes/:id/students/:studentId 
     removeStudentFromClass: async (req, res, next) => {
         try {
             const { id, studentId } = req.params;
@@ -790,7 +753,7 @@ const courseController = {
         }
     },
 
-    // GET /students/:id/classes - Get classes of a student
+    // GET /students/:id/classes 
     getStudentClasses: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -850,7 +813,7 @@ const courseController = {
         }
     },
 
-    // POST /enrollment/bulk - Bulk enrollment
+    // POST /enrollment/bulk 
     bulkEnrollment: async (req, res, next) => {
         const transaction = await sequelize.transaction();
         
@@ -870,7 +833,6 @@ const courseController = {
                 try {
                     const { student_id, course_section_id } = enrollment;
 
-                    // Validate required fields
                     if (!student_id || !course_section_id) {
                         results.failed.push({ 
                             enrollment, 
@@ -879,7 +841,6 @@ const courseController = {
                         continue;
                     }
 
-                    // Check if student and course section exist
                     const student = await Student.findByPk(student_id);
                     const courseSection = await CourseSection.findByPk(course_section_id);
 
@@ -893,7 +854,6 @@ const courseController = {
                         continue;
                     }
 
-                    // Check capacity
                     const currentEnrollment = await StudentCourseSection.count({
                         where: { course_section_id }
                     });
@@ -903,7 +863,6 @@ const courseController = {
                         continue;
                     }
 
-                    // Check if already enrolled
                     const existingEnrollment = await StudentCourseSection.findOne({
                         where: { student_id, course_section_id }
                     });
@@ -913,12 +872,11 @@ const courseController = {
                         continue;
                     }
 
-                    // Create enrollment
                     await StudentCourseSection.create({
                         student_id,
                         course_section_id,
                         enrollment_date: new Date(),
-                        status: 'active'
+                        status: 'enrolled'
                     }, { transaction });
 
                     results.successful.push({ enrollment, status: 'enrolled' });
@@ -947,7 +905,7 @@ const courseController = {
         }
     },
 
-    // GET /enrollment/export - Export enrollment data
+        // GET /enrollment/export 
     exportEnrollment: async (req, res, next) => {
         try {
             const { course_section_id, subject_id, format = 'json' } = req.query;

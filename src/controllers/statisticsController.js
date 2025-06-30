@@ -1,5 +1,3 @@
-// Statistics Controller
-// Handles statistics and reporting operations: dashboard analytics, learning reports
 
 const { Student, Lecturer, Subject, CourseSection, Lecture, LearningMaterial, Quiz, Submission, Account, StudentCourseSection, Question, Response } = require('../models');
 const { getPagination, getPagingData } = require('../services/paginationService');
@@ -7,11 +5,7 @@ const { Op, Sequelize } = require('sequelize');
 const sequelize = require('../config/database');
 
 const statisticsController = {
-    // ================================
-    // DASHBOARD ANALYTICS (5 APIs)
-    // ================================
-
-    // GET /statistics/dashboard - Overall system dashboard
+    // GET /statistics/dashboard 
     getDashboardStats: async (req, res, next) => {
         try {
             const { timeframe = '30', detailed = false } = req.query;
@@ -19,7 +13,6 @@ const statisticsController = {
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - daysBack);
 
-            // Basic counts
             const [
                 totalStudents,
                 totalLecturers,
@@ -40,7 +33,6 @@ const statisticsController = {
                 Lecture.count()
             ]);
 
-            // Recent activity (last 7 days)
             const recentDate = new Date();
             recentDate.setDate(recentDate.getDate() - 7);
 
@@ -64,7 +56,6 @@ const statisticsController = {
             let detailedStats = {};
             
             if (detailed === 'true') {
-                // Enrollment trends (last 30 days)
                 const enrollmentTrend = await StudentCourseSection.findAll({
                     attributes: [
                         [Sequelize.fn('DATE', Sequelize.col('created_at')), 'date'],
@@ -117,14 +108,12 @@ const statisticsController = {
             next(error);
         }
     },
-
-    // GET /statistics/students - Student-focused analytics
+    // GET /statistics/students 
     getStudentStats: async (req, res, next) => {
         try {
             const { page = 1, size = 10, course_id, timeframe = '30' } = req.query;
             const { limit, offset } = getPagination(page, size);
 
-            // Basic student statistics
             const students = await Student.findAndCountAll({
                 include: [
                     {
@@ -154,7 +143,6 @@ const statisticsController = {
 
             const response = getPagingData(students, page, limit);
 
-            // Overall statistics
             const totalStudents = await Student.count();
             const activeEnrollments = await StudentCourseSection.count();
 
@@ -173,7 +161,7 @@ const statisticsController = {
         }
     },
 
-    // GET /statistics/teachers - Lecturer-focused analytics
+    // GET /statistics/teachers 
     getTeacherStats: async (req, res, next) => {
         try {
             const { page = 1, size = 10 } = req.query;
@@ -199,7 +187,6 @@ const statisticsController = {
 
             const response = getPagingData(lecturers, page, limit);
 
-            // Overall statistics
             const totalLecturers = await Lecturer.count();
             const totalSubjects = await Subject.count();
 
@@ -218,7 +205,7 @@ const statisticsController = {
         }
     },
 
-    // GET /statistics/courses - Course-focused analytics
+    // GET /statistics/courses 
     getCourseStats: async (req, res, next) => {
         try {
             const { page = 1, size = 10, lecturer_id } = req.query;
@@ -264,7 +251,6 @@ const statisticsController = {
 
             const response = getPagingData(courses, page, limit);
 
-            // Add analytics to each course
             response.items = response.items.map(course => {
                 const courseData = course.toJSON();
                 const totalSections = courseData.courseSections.length;
@@ -282,7 +268,6 @@ const statisticsController = {
                 };
             });
 
-            // Overall statistics
             const [totalCourses, totalEnrollments] = await Promise.all([
                 Subject.count(),
                 StudentCourseSection.count()
@@ -303,7 +288,7 @@ const statisticsController = {
         }
     },
 
-    // GET /statistics/classes - Class section analytics
+    // GET /statistics/classes 
     getClassStats: async (req, res, next) => {
         try {
             const { page = 1, size = 10, subject_id } = req.query;
@@ -344,7 +329,6 @@ const statisticsController = {
 
             const response = getPagingData(classes, page, limit);
 
-            // Add performance metrics
             response.items = response.items.map(classSection => {
                 const classData = classSection.toJSON();
                 return {
@@ -374,11 +358,7 @@ const statisticsController = {
         }
     },
 
-    // ================================
-    // LEARNING REPORTS (5 APIs)
-    // ================================
-
-    // GET /reports/student-progress - Individual student learning progress
+    // GET /reports/student-progress 
     getStudentProgress: async (req, res, next) => {
         try {
             const { student_id } = req.query;
@@ -390,7 +370,6 @@ const statisticsController = {
                 });
             }
 
-            // Get student comprehensive data
             const student = await Student.findByPk(student_id, {
                 include: [
                     {
@@ -432,7 +411,6 @@ const statisticsController = {
                 });
             }
 
-            // Calculate progress metrics
             const enrolledCourses = student.enrollments.map(enrollment => {
                 const course = enrollment.courseSection.subject;
                 const courseSubmissions = student.submissions.filter(sub => 
@@ -489,7 +467,7 @@ const statisticsController = {
         }
     },
 
-    // GET /reports/class-performance - Class-wide performance analysis
+    // GET /reports/class-performance 
     getClassPerformance: async (req, res, next) => {
         try {
             const { class_id } = req.query;
@@ -501,7 +479,6 @@ const statisticsController = {
                 });
             }
 
-            // Get class performance data
             const classSection = await CourseSection.findByPk(class_id, {
                 include: [
                     {
@@ -541,7 +518,6 @@ const statisticsController = {
             const students = classSection.enrollments.map(e => e.student);
             const quizzes = classSection.subject.quizzes || [];
 
-            // Calculate performance metrics
             const studentPerformance = students.map(student => {
                 const studentSubmissions = quizzes.flatMap(quiz => 
                     quiz.submissions.filter(sub => sub.student_id === student.id)
@@ -589,7 +565,7 @@ const statisticsController = {
         }
     },
 
-    // GET /reports/quiz-analytics - Quiz performance analysis
+    // GET /reports/quiz-analytics 
     getQuizAnalytics: async (req, res, next) => {
         try {
             const { quiz_id } = req.query;
@@ -601,7 +577,6 @@ const statisticsController = {
                 });
             }
 
-            // Get quiz analytics
             const quiz = await Quiz.findByPk(quiz_id, {
                 include: [
                     {
@@ -683,7 +658,7 @@ const statisticsController = {
         }
     },
 
-    // GET /reports/attendance - Attendance report (simulated based on activity)
+    // GET /reports/attendance 
     getAttendanceReport: async (req, res, next) => {
         try {
             const { class_id, timeframe = '30' } = req.query;
@@ -691,7 +666,6 @@ const statisticsController = {
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - daysBack);
 
-            // Simulate attendance based on learning activity
             let whereConditions = {};
             if (class_id) {
                 whereConditions.course_section_id = class_id;
@@ -725,7 +699,6 @@ const statisticsController = {
                 ]
             });
 
-            // Calculate attendance based on activity
             const attendanceData = students.map(student => {
                 const activityDates = student.submissions.map(sub => 
                     new Date(sub.created_at).toDateString()
@@ -769,12 +742,11 @@ const statisticsController = {
         }
     },
 
-    // GET /reports/grades - Comprehensive grades report
+    // GET /reports/grades 
     getGradesReport: async (req, res, next) => {
         try {
             const { class_id, student_id, subject_id, format = 'summary' } = req.query;
 
-            // Build query conditions
             let submissionWhere = {
                 status: { [Op.in]: ['submitted', 'graded'] }
             };
@@ -805,7 +777,6 @@ const statisticsController = {
                 order: [['submitted_at', 'DESC']]
             });
 
-            // Group grades by student
             const studentGrades = {};
             submissions.forEach(submission => {
                 const studentId = submission.student.id;
@@ -831,7 +802,6 @@ const statisticsController = {
                 });
             });
 
-            // Calculate statistics for each student
             Object.keys(studentGrades).forEach(studentId => {
                 const grades = studentGrades[studentId].grades;
                 const percentages = grades.map(g => g.percentage || 0);

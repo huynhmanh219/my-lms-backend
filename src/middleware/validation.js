@@ -1,9 +1,7 @@
-// Input Validation Middleware
-// Request body, query, and params validation using Joi
 
 const Joi = require('joi');
 
-// Generic validation middleware
+
 const validate = (schema) => {
     return (req, res, next) => {
         const { error } = schema.validate(req.body);
@@ -21,10 +19,13 @@ const validate = (schema) => {
     };
 };
 
-// Query validation middleware
 const validateQuery = (schema) => {
     return (req, res, next) => {
-        const { error } = schema.validate(req.query);
+        const { error, value } = schema.validate(req.query, { 
+            convert: true,
+            allowUnknown: true,
+            stripUnknown: false
+        });
         
         if (error) {
             const errorMessages = error.details.map(detail => detail.message);
@@ -35,11 +36,11 @@ const validateQuery = (schema) => {
             });
         }
         
+        req.query = value;
         next();
     };
 };
 
-// Params validation middleware
 const validateParams = (schema) => {
     return (req, res, next) => {
         const { error } = schema.validate(req.params);
@@ -57,7 +58,6 @@ const validateParams = (schema) => {
     };
 };
 
-// Common validation schemas
 const commonSchemas = {
     id: Joi.object({
         id: Joi.number().integer().positive().required()
@@ -71,7 +71,6 @@ const commonSchemas = {
         order: Joi.string().valid('asc', 'desc').default('asc')
     }),
     
-    // Teacher-specific pagination with additional filters
     teacherPagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -82,7 +81,6 @@ const commonSchemas = {
         order: Joi.string().valid('asc', 'desc').default('desc')
     }),
     
-    // Student-specific pagination with additional filters
     studentPagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -92,7 +90,6 @@ const commonSchemas = {
         order: Joi.string().valid('asc', 'desc').default('desc')
     }),
     
-    // Course-specific pagination with filters
     coursePagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -103,7 +100,6 @@ const commonSchemas = {
         order: Joi.string().valid('asc', 'desc').default('desc')
     }),
     
-    // Class-specific pagination with filters
     classPagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -119,7 +115,6 @@ const commonSchemas = {
     optionalPassword: Joi.string().min(6).optional()
 };
 
-// Authentication validation schemas
 const authSchemas = {
     login: Joi.object({
         email: commonSchemas.email,
@@ -144,7 +139,6 @@ const authSchemas = {
     })
 };
 
-// User validation schemas
 const userSchemas = {
     createTeacher: Joi.object({
         email: commonSchemas.email,
@@ -191,7 +185,6 @@ const userSchemas = {
     })
 };
 
-// Course validation schemas
 const courseSchemas = {
     createCourse: Joi.object({
         subject_name: Joi.string().min(3).max(255).required(),
@@ -247,14 +240,12 @@ const courseSchemas = {
         ).min(1).max(100).required()
     }),
     
-    // Parameter validation for enrollment routes
     enrollmentParams: Joi.object({
         id: Joi.number().integer().positive().required(),
         studentId: Joi.number().integer().positive().required()
     })
 };
 
-// Lecture validation schemas
 const lectureSchemas = {
     createLecture: Joi.object({
         chapter_id: Joi.number().integer().positive().required(),
@@ -297,7 +288,6 @@ const lectureSchemas = {
         visibility: Joi.string().valid('public', 'private').optional()
     }),
     
-    // Lecture-specific pagination with filters
     lecturePagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -308,7 +298,6 @@ const lectureSchemas = {
         order: Joi.string().valid('asc', 'desc').default('asc')
     }),
     
-    // Chapter-specific pagination with filters
     chapterPagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -319,7 +308,6 @@ const lectureSchemas = {
         order: Joi.string().valid('asc', 'desc').default('asc')
     }),
     
-    // My lectures pagination with filters
     myLecturesPagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -330,7 +318,6 @@ const lectureSchemas = {
     })
 };
 
-// Material validation schemas
 const materialSchemas = {
     createMaterial: Joi.object({
         title: Joi.string().min(3).max(255).required(),
@@ -363,7 +350,6 @@ const materialSchemas = {
         is_public: Joi.boolean().optional()
     }),
     
-    // Material-specific pagination with filters
     materialPagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -376,21 +362,18 @@ const materialSchemas = {
         order: Joi.string().valid('asc', 'desc').default('desc')
     }),
     
-    // Search materials
     searchMaterials: Joi.object({
         query: Joi.string().min(1).required(),
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10)
     }),
     
-    // Recent materials
     recentMaterials: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
         days: Joi.number().integer().min(1).max(365).default(7)
     }),
     
-    // Materials by type
     materialsByType: Joi.object({
         type: Joi.string().valid('document', 'video', 'audio', 'image', 'link').required(),
         page: Joi.number().integer().min(1).default(1),
@@ -398,14 +381,13 @@ const materialSchemas = {
     })
 };
 
-// Quiz validation schemas
 const quizSchemas = {
     createQuiz: Joi.object({
         title: Joi.string().min(3).max(255).required(),
         description: Joi.string().max(2000).optional(),
         subject_id: Joi.number().integer().positive().required(),
         course_section_id: Joi.number().integer().positive().optional(),
-        time_limit: Joi.number().integer().min(1).max(480).optional(), // in minutes
+        time_limit: Joi.number().integer().min(1).max(480).optional(),
         max_attempts: Joi.number().integer().min(1).max(10).default(1),
         passing_score: Joi.number().min(0).max(100).default(70),
         is_published: Joi.boolean().default(false),
@@ -458,7 +440,6 @@ const quizSchemas = {
         selected_answer_ids: Joi.array().items(Joi.number().integer().positive()).optional()
     }).or('answer_text', 'selected_answer_ids'),
     
-    // Quiz attempt validation
     quizAttemptPagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
@@ -469,7 +450,6 @@ const quizSchemas = {
     })
 };
 
-// File upload validation schemas
 const fileSchemas = {
     uploadValidation: Joi.object({
         title: Joi.string().min(3).max(255).optional(),
@@ -481,7 +461,6 @@ const fileSchemas = {
         tags: Joi.array().items(Joi.string().max(50)).max(10).optional()
     }),
     
-    // Avatar upload validation
     avatarUpload: Joi.object({
         crop_x: Joi.number().min(0).optional(),
         crop_y: Joi.number().min(0).optional(),
@@ -490,9 +469,7 @@ const fileSchemas = {
     })
 };
 
-// Business logic validation
 const businessLogicValidation = {
-    // Enrollment capacity validation
     validateEnrollmentCapacity: async (courseSectionId, newStudentCount = 1) => {
         try {
             const CourseSection = require('../models').CourseSection;
@@ -599,11 +576,9 @@ const businessLogicValidation = {
     }
 };
 
-// Enhanced validation middleware with business logic
 const validateWithBusinessLogic = (schema, businessLogicFn = null) => {
     return async (req, res, next) => {
         try {
-            // First, validate the schema
             const { error } = schema.validate(req.body);
             if (error) {
                 const errorMessages = error.details.map(detail => detail.message);
@@ -615,7 +590,6 @@ const validateWithBusinessLogic = (schema, businessLogicFn = null) => {
                 });
             }
             
-            // Then, run business logic validation if provided
             if (businessLogicFn) {
                 await businessLogicFn(req, res);
             }
@@ -631,7 +605,6 @@ const validateWithBusinessLogic = (schema, businessLogicFn = null) => {
     };
 };
 
-// File validation middleware
 const validateFileUpload = (allowedTypes = [], maxSize = 50 * 1024 * 1024) => {
     return (req, res, next) => {
         if (!req.file && !req.files) {
@@ -645,7 +618,7 @@ const validateFileUpload = (allowedTypes = [], maxSize = 50 * 1024 * 1024) => {
         const files = req.files ? (Array.isArray(req.files) ? req.files : Object.values(req.files).flat()) : [req.file];
         
         for (const file of files) {
-            // Check file size
+
             if (file.size > maxSize) {
                 return res.status(400).json({
                     status: 'error',
@@ -654,7 +627,7 @@ const validateFileUpload = (allowedTypes = [], maxSize = 50 * 1024 * 1024) => {
                 });
             }
             
-            // Check file type if specified
+
             if (allowedTypes.length > 0 && !allowedTypes.includes(file.mimetype)) {
                 return res.status(400).json({
                     status: 'error',
@@ -668,11 +641,11 @@ const validateFileUpload = (allowedTypes = [], maxSize = 50 * 1024 * 1024) => {
     };
 };
 
-// Security validation middleware
+
 const validateSecureInput = (req, res, next) => {
     const { logSecurity } = require('../services/loggerService');
     
-    // Check for potentially malicious patterns
+
     const maliciousPatterns = [
         /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
         /javascript:/gi,
@@ -705,7 +678,7 @@ const validateSecureInput = (req, res, next) => {
         return true;
     };
     
-    // Check all input sources
+        
     const inputSources = [
         { data: req.body, name: 'body' },
         { data: req.query, name: 'query' },

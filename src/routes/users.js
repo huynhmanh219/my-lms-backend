@@ -1,5 +1,3 @@
-// User Management Routes
-// Routes for managing teachers, students, and roles
 
 const express = require('express');
 const router = express.Router();
@@ -11,146 +9,135 @@ const { userSchemas, commonSchemas } = require('../middleware/validation');
 const { uploadLimiter } = require('../middleware/rateLimiter');
 const upload = require('../config/multer');
 
-// ==========================================
-// TEACHER MANAGEMENT ROUTES (7 APIs)
-// ==========================================
 
-// GET /users/teachers - Get teachers with pagination, search, filters
+// GET /users/teachers 
 router.get('/teachers',
     auth,
-    requireLecturer, // Lecturers and admins can view teachers
+    requireLecturer,
     validateQuery(commonSchemas.teacherPagination),
     userController.getTeachers
 );
 
-// GET /users/teachers/export-excel - Export teachers to Excel (MUST come before /:id route)
+// GET /users/teachers/export-excel
 router.get('/teachers/export-excel',
     auth,
-    requireAdmin, // Only admins can export data
+    requireAdmin,
     userController.exportTeachersExcel
 );
 
-// GET /users/teachers/:id - Get single teacher
+// GET /users/teachers/:id
 router.get('/teachers/:id',
     auth,
-    requireLecturer, // Lecturers and admins can view teacher details
+    requireLecturer,
     validateParams(commonSchemas.id),
     userController.getTeacher
 );
 
-// POST /users/teachers - Create teacher (account + lecturer profile)
+// POST /users/teachers
 router.post('/teachers',
     auth,
-    requireAdmin, // Only admins can create teachers
+    requireAdmin,
     validate(userSchemas.createTeacher),
     userController.createTeacher
 );
 
-// PUT /users/teachers/:id - Update teacher
+// PUT /users/teachers/:id
 router.put('/teachers/:id',
     auth,
-    requireAdmin, // Only admins can update teacher accounts
+    requireAdmin,
     validateParams(commonSchemas.id),
     validate(userSchemas.updateTeacher),
     userController.updateTeacher
 );
 
-// DELETE /users/teachers/:id - Soft delete teacher
+// DELETE /users/teachers/:id
 router.delete('/teachers/:id',
     auth,
-    requireAdmin, // Only admins can delete teachers
+    requireAdmin,
     validateParams(commonSchemas.id),
     userController.deleteTeacher
 );
 
-// POST /users/teachers/:id/upload-avatar - Upload teacher avatar
+// POST /users/teachers/:id/upload-avatar
 router.post('/teachers/:id/upload-avatar',
     auth,
-    requireSelfOrElevated, // Teachers can upload their own avatar, admins can upload any
+    requireSelfOrElevated,
     uploadLimiter,
     validateParams(commonSchemas.id),
     upload.single('avatar'),
     userController.uploadTeacherAvatar
 );
 
-// ==========================================
-// STUDENT MANAGEMENT ROUTES (8 APIs)
-// ==========================================
-
-// GET /users/students - Get students with pagination, search, filters
+// GET /users/students
 router.get('/students',
     auth,
-    requireLecturer, // Lecturers and admins can view students
+    requireLecturer,
     validateQuery(commonSchemas.studentPagination),
     userController.getStudents
 );
 
-// POST /users/students/import-excel - Import students from Excel (MUST come before /:id route)
+// POST /users/students/import-excel
 router.post('/students/import-excel',
     auth,
-    requireAdmin, // Only admins can import students
+    requireAdmin,
     uploadLimiter,
     upload.single('file'),
     userController.importStudentsExcel
 );
 
-// GET /users/students/export-excel - Export students to Excel (MUST come before /:id route)
+// GET /users/students/export-excel
 router.get('/students/export-excel',
     auth,
-    requireAdmin, // Only admins can export student data
+    requireAdmin,
     userController.exportStudentsExcel
 );
 
-// GET /users/students/:id - Get single student
+// GET /users/students/:id
 router.get('/students/:id',
     auth,
-    requireSelfOrElevated, // Students can view their own data, lecturers/admins can view any
+    requireSelfOrElevated,
     validateParams(commonSchemas.id),
     userController.getStudent
 );
 
-// POST /users/students - Create student (account + student profile)
+// POST /users/students
 router.post('/students',
     auth,
-    requireLecturer, // Lecturers and admins can create student accounts
+    requireLecturer,
     validate(userSchemas.createStudent), // RE-ENABLED
     userController.createStudent
 );
 
-// PUT /users/students/:id - Update student
+// PUT /users/students/:id
 router.put('/students/:id',
     auth,
-    requireLecturer, // Lecturers and admins can update student accounts
+    requireLecturer,
     validateParams(commonSchemas.id),
     validate(userSchemas.updateStudent),
     userController.updateStudent
 );
 
-// DELETE /users/students/:id - Soft delete student
+// DELETE /users/students/:id
 router.delete('/students/:id',
     auth,
-    requireAdmin, // Only admins can delete students
+    requireLecturer,
     validateParams(commonSchemas.id),
     userController.deleteStudent
 );
 
-// POST /users/students/:id/upload-avatar - Upload student avatar
+// POST /users/students/:id/upload-avatar
 router.post('/students/:id/upload-avatar',
     auth,
-    requireSelfOrElevated, // Students can upload their own avatar, admins/lecturers can upload any
+    requireSelfOrElevated,
     uploadLimiter,
     validateParams(commonSchemas.id),
     upload.single('avatar'),
     userController.uploadStudentAvatar
 );
 
-// ==========================================
-// ROLE MANAGEMENT ROUTES (1 API)
-// ==========================================
-
-// GET /users/roles - Get all roles
+// GET /users/roles
 router.get('/roles',
-    auth, // All authenticated users can view roles
+    auth,
     userController.getRoles
 );
 

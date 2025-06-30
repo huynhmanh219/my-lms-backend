@@ -1,5 +1,4 @@
-// Account Model
-// User account model for authentication and basic user information
+
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
@@ -82,7 +81,7 @@ const Account = sequelize.define('Account', {
     }
 });
 
-// Instance methods
+
 Account.prototype.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
