@@ -1,4 +1,3 @@
-
 const { Subject, CourseSection, StudentCourseSection, Account, Student, Lecturer, Role } = require('../models');
 const paginationService = require('../services/paginationService');
 const { ValidationError, NotFoundError } = require('../middleware/errorHandler');
@@ -813,6 +812,74 @@ const courseController = {
         }
     },
 
+    // GET /students/me/classes - Get current student's classes
+    getCurrentStudentClasses: async (req, res, next) => {
+        try {
+            const { page = 1, limit = 10, status } = req.query;
+            const accountId = req.user.id; // Get current user's account ID
+
+            // Verify user is a student
+            if (req.user.role !== 'student') {
+                throw new ValidationError('Only students can access this endpoint');
+            }
+
+            // Find student record by account_id to get the actual student.id
+            const student = await Student.findOne({
+                where: { account_id: accountId }
+            });
+
+            if (!student) {
+                throw new NotFoundError('Student profile not found');
+            }
+
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            const whereConditions = { student_id: student.id }; // Use student.id, not account_id
+            if (status) {
+                whereConditions.status = status;
+            }
+
+            const { count, rows } = await StudentCourseSection.findAndCountAll({
+                where: whereConditions,
+                include: [
+                    {
+                        model: CourseSection,
+                        as: 'courseSection',
+                        include: [
+                            {
+                                model: Subject,
+                                as: 'subject',
+                                attributes: ['id', 'subject_name', 'subject_code', 'credits', 'description']
+                            },
+                            {
+                                model: Lecturer,
+                                as: 'lecturer',
+                                attributes: ['id', 'first_name', 'last_name', 'title']
+                            }
+                        ]
+                    }
+                ],
+                limit: queryLimit,
+                offset,
+                order: [['enrollment_date', 'DESC']],
+                distinct: true
+            });
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Student classes retrieved successfully',
+                data: {
+                    enrollments: rows,
+                    pagination
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
     // POST /enrollment/bulk 
     bulkEnrollment: async (req, res, next) => {
         const transaction = await sequelize.transaction();
@@ -970,6 +1037,227 @@ const courseController = {
                     enrollments: exportData,
                     count: exportData.length,
                     exported_at: new Date()
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // GET /classes/:id/lectures - Get lectures in a class
+    getClassLectures: async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const { page = 1, limit = 10 } = req.query;
+
+            // Check if class exists
+            const courseSection = await CourseSection.findByPk(id, {
+                include: [
+                    {
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'subject_name', 'subject_code']
+                    }
+                ]
+            });
+
+            if (!courseSection) {
+                throw new NotFoundError('Class not found');
+            }
+
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            // Get all chapters for this subject
+            const { Chapter, Lecture } = require('../models');
+            const { count, rows } = await Lecture.findAndCountAll({
+                include: [
+                    {
+                        model: Chapter,
+                        as: 'chapter',
+                        where: { subject_id: courseSection.subject_id },
+                        attributes: ['id', 'title', 'order_index']
+                    }
+                ],
+                where: { is_published: true },
+                order: [
+                    ['chapter', 'order_index', 'ASC'],
+                    ['order_index', 'ASC']
+                ],
+                limit: queryLimit,
+                offset,
+                distinct: true
+            });
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Class lectures retrieved successfully',
+                data: {
+                    class: {
+                        id: courseSection.id,
+                        section_name: courseSection.section_name,
+                        subject: courseSection.subject
+                    },
+                    lectures: rows,
+                    pagination
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // GET /classes/:id/materials - Get materials in a class
+    getClassMaterials: async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const { page = 1, limit = 10, material_type } = req.query;
+
+            // Check if class exists
+            const courseSection = await CourseSection.findByPk(id, {
+                include: [
+                    {
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'subject_name', 'subject_code']
+                    }
+                ]
+            });
+
+            if (!courseSection) {
+                throw new NotFoundError('Class not found');
+            }
+
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            // Get materials for this subject
+            const { LearningMaterial } = require('../models');
+            
+            const whereConditions = { 
+                subject_id: courseSection.subject_id,
+                is_public: true 
+            };
+
+            if (material_type) {
+                whereConditions.material_type = material_type;
+            }
+
+            const { count, rows } = await LearningMaterial.findAndCountAll({
+                where: whereConditions,
+                include: [
+                    {
+                        model: Lecturer,
+                        as: 'uploader',
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ],
+                order: [['created_at', 'DESC']],
+                limit: queryLimit,
+                offset,
+                distinct: true
+            });
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Class materials retrieved successfully',
+                data: {
+                    class: {
+                        id: courseSection.id,
+                        section_name: courseSection.section_name,
+                        subject: courseSection.subject
+                    },
+                    materials: rows,
+                    pagination
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // GET /lecturers/me/classes - Get current lecturer's classes
+    getCurrentLecturerClasses: async (req, res, next) => {
+        try {
+            const { page = 1, limit = 10, search, subject_id, sort = 'created_at', order = 'desc' } = req.query;
+            const accountId = req.user.id; // Get current user's account ID
+
+            // Verify user is a lecturer
+            if (req.user.role !== 'lecturer') {
+                throw new ValidationError('Only lecturers can access this endpoint');
+            }
+
+            // Find lecturer record by account_id to get the actual lecturer.id
+            const lecturer = await Lecturer.findOne({
+                where: { account_id: accountId }
+            });
+
+            if (!lecturer) {
+                throw new NotFoundError('Lecturer profile not found');
+            }
+
+            const { offset, limit: queryLimit } = paginationService.getOffsetLimit(page, limit);
+
+            const whereConditions = { lecturer_id: lecturer.id }; // Use lecturer.id, not account_id
+            
+            if (search) {
+                whereConditions[Op.or] = [
+                    { section_name: { [Op.like]: `%${search}%` } }
+                ];
+            }
+
+            if (subject_id) {
+                whereConditions.subject_id = subject_id;
+            }
+
+            const validSortFields = ['created_at', 'section_name', 'start_date', 'end_date'];
+            const sortField = validSortFields.includes(sort) ? sort : 'created_at';
+            const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+            const { count, rows } = await CourseSection.findAndCountAll({
+                where: whereConditions,
+                include: [
+                    {
+                        model: Subject,
+                        as: 'subject',
+                        attributes: ['id', 'subject_name', 'subject_code', 'credits', 'description']
+                    },
+                    {
+                        model: Lecturer,
+                        as: 'lecturer',
+                        attributes: ['id', 'first_name', 'last_name', 'title']
+                    }
+                ],
+                limit: queryLimit,
+                offset,
+                order: [[sortField, sortOrder]],
+                distinct: true
+            });
+
+            // Add enrollment count for each class
+            const classesWithEnrollmentCount = await Promise.all(
+                rows.map(async (courseSection) => {
+                    const enrollmentCount = await StudentCourseSection.count({
+                        where: { course_section_id: courseSection.id }
+                    });
+                    
+                    return {
+                        ...courseSection.toJSON(),
+                        enrollmentCount
+                    };
+                })
+            );
+
+            const pagination = paginationService.getPaginationData(count, page, limit);
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Lecturer classes retrieved successfully',
+                data: {
+                    classes: classesWithEnrollmentCount,
+                    pagination
                 }
             });
         } catch (error) {

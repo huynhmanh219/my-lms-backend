@@ -1,4 +1,3 @@
-
 const Joi = require('joi');
 
 
@@ -111,8 +110,8 @@ const commonSchemas = {
     }),
     
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required(),
-    optionalPassword: Joi.string().min(6).optional()
+    password: Joi.string().min(1).required(),
+    optionalPassword: Joi.string().min(1).optional()
 };
 
 const authSchemas = {
@@ -123,9 +122,9 @@ const authSchemas = {
     }),
     
     changePassword: Joi.object({
-        current_password: commonSchemas.password,
-        new_password: commonSchemas.password,
-        confirm_password: Joi.string().valid(Joi.ref('new_password')).required()
+        currentPassword: commonSchemas.password,
+        newPassword: commonSchemas.password,
+        confirmPassword: Joi.string().valid(Joi.ref('newPassword')).required()
     }),
     
     forgotPassword: Joi.object({
@@ -134,8 +133,8 @@ const authSchemas = {
     
     resetPassword: Joi.object({
         token: Joi.string().required(),
-        new_password: commonSchemas.password,
-        confirm_password: Joi.string().valid(Joi.ref('new_password')).required()
+        newPassword: commonSchemas.password,
+        confirmPassword: Joi.string().valid(Joi.ref('newPassword')).required()
     })
 };
 
@@ -163,8 +162,6 @@ const userSchemas = {
     }),
     
     createStudent: Joi.object({
-        email: commonSchemas.email,
-        password: commonSchemas.password,
         student_id: Joi.string().min(3).max(20).required(),
         first_name: Joi.string().min(2).max(50).required(),
         last_name: Joi.string().min(2).max(50).required(),

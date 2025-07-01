@@ -1,29 +1,11 @@
-
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 
-
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { generalLimiter, speedLimiter } = require('./middleware/rateLimiter');
-const { 
-    xssProtection, 
-    sqlInjectionProtection, 
-    fileUploadSecurity,
-    sanitizeInput,
-    securityHeaders,
-    mongoSanitization,
-    hppProtection,
-    requestSizeLimiter
-} = require('./middleware/security');
-const { validateSecureInput } = require('./middleware/validation');
-const { requestLogger } = require('./services/loggerService');
-
-
-
-
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const courseRoutes = require('./routes/courses');
@@ -33,23 +15,21 @@ const quizRoutes = require('./routes/quizzes');
 const questionRoutes = require('./routes/questions');
 const quizAttemptRoutes = require('./routes/quiz-attempts');
 const studentRoutes = require('./routes/students');
+const lecturerRoutes = require('./routes/lecturers');
 const statisticsRoutes = require('./routes/statistics');
-
 
 const app = express();
 
-
-app.set('trust proxy', 1);
-
-
+// SIMPLIFIED HELMET - NO CORS ISSUES
 app.use(helmet({
     crossOriginEmbedderPolicy: false,
-    contentSecurityPolicy: {
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: process.env.NODE_ENV === 'development' ? false : {
         directives: {
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
             scriptSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"],
+            imgSrc: ["'self'", "data:", "https:", "http://localhost:3000", "blob:"],
             fontSrc: ["'self'", "https:", "data:"],
             connectSrc: ["'self'"],
             mediaSrc: ["'self'"],
@@ -66,112 +46,30 @@ app.use(helmet({
     }
 }));
 
-app.use(securityHeaders);
-
-
-const corsOptions = {
-    origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173'],
+// CORS CONFIG  
+app.use(cors({
+    origin: ['http://localhost:3000', 'http://localhost:5173'],
     credentials: true,
-    optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['X-Total-Count', 'X-Page-Count']
-};
-app.use(cors(corsOptions));
-
-if (process.env.NODE_ENV !== 'test') {
-    app.use(requestLogger);
-    app.use(morgan('combined'));
-}
-
-// Body parsing size limits
-app.use(express.json({ 
-    limit: '10mb',
-    verify: (req, res, buf) => {
-        req.rawBody = buf;
-    }
-}));
-app.use(express.urlencoded({ 
-    extended: true, 
-    limit: '10mb',
-    parameterLimit: 100
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-app.use(requestSizeLimiter);
-app.use(hppProtection);
-app.use(mongoSanitization);
-app.use(xssProtection);
-app.use(sqlInjectionProtection);
-app.use(sanitizeInput);
-app.use(validateSecureInput);
-
-// Rate limiting
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(generalLimiter);
 app.use(speedLimiter);
 
+// UPLOADS WITH CORS FIX
 app.use('/uploads', (req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
     next();
 }, express.static(path.join(__dirname, '../uploads')));
 
 app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'success',
-        message: 'LMS Backend is running',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV || 'development',
-        version: process.env.npm_package_version || '1.0.0',
-        uptime: Math.floor(process.uptime())
-    });
+    res.json({ status: 'success', message: 'LMS Backend - CORS FIXED' });
 });
-
-app.use('/api', (req, res, next) => {
-    if (req.method === 'POST' && req.url.includes('/users/students')) {
-        console.log('🔍 MIDDLEWARE DEBUG - Final request body before routes:');
-        console.log('URL:', req.url);
-        console.log('Body:', JSON.stringify(req.body, null, 2));
-        console.log('Body type:', typeof req.body);
-        if (req.body) {
-            Object.keys(req.body).forEach(key => {
-                console.log(`🔍 ${key}:`, JSON.stringify(req.body[key]), typeof req.body[key]);
-            });
-        }
-        console.log('🔍 END MIDDLEWARE DEBUG');
-    }
-    next();
-});
-
-if (process.env.NODE_ENV === 'development') {
-    app.get('/security-info', (req, res) => {
-        res.status(200).json({
-            status: 'success',
-            security: {
-                headers: {
-                    helmet: 'enabled',
-                    cors: 'configured',
-                    xss_protection: 'enabled',
-                    sql_injection_protection: 'enabled'
-                },
-                rate_limiting: {
-                    general: '100 requests per 15 minutes',
-                    auth: '5 requests per 15 minutes',
-                    upload: '50 requests per hour'
-                },
-                validation: {
-                    input_sanitization: 'enabled',
-                    file_validation: 'enabled',
-                    business_logic: 'enabled'
-                },
-                logging: {
-                    request_logging: 'enabled',
-                    security_logging: 'enabled',
-                    audit_logging: 'enabled'
-                }
-            }
-        });
-    });
-}
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -182,10 +80,10 @@ app.use('/api/quizzes', quizRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/quiz-attempts', quizAttemptRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/lecturers', lecturerRoutes);
 app.use('/api/statistics', statisticsRoutes);
-    
-app.use('*', notFoundHandler);
 
+app.use('*', notFoundHandler);
 app.use(errorHandler);
 
-module.exports = app; 
+module.exports = app;

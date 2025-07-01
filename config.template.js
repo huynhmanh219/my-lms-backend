@@ -1,10 +1,8 @@
-// Configuration Template
-// Copy this to config.js and update with your actual values
 
 module.exports = {
   // Environment Configuration
   NODE_ENV: 'development',
-  PORT: 5000,
+  PORT: 3000,
 
   // Database Configuration
   database: {
@@ -24,7 +22,7 @@ module.exports = {
   },
 
   // Frontend URL (for CORS and email links)
-  frontendUrl: 'http://localhost:3000',
+  frontendUrl: 'http://localhost:5173',
 
   // Email Configuration (SMTP)
   email: {

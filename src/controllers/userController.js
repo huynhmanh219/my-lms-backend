@@ -1,4 +1,3 @@
-
 const { Account, Role, Student, Lecturer } = require('../models');
 const authService = require('../services/authService');
 const paginationService = require('../services/paginationService');
@@ -393,7 +392,7 @@ const userController = {
         }
     },
 
-            // GET /users/students/:id 
+    // GET /users/students/:id 
     getStudent: async (req, res, next) => {
         try {
             const { id } = req.params;
@@ -442,11 +441,14 @@ const userController = {
         const transaction = await sequelize.transaction();
         
         try {
-            const { email, password, student_id, first_name, last_name, phone, date_of_birth, address } = req.body;
+            const { student_id, first_name, last_name, phone, date_of_birth, address } = req.body;
+
+            const email = `${student_id}@lms.com`;
+            const password = student_id;
 
             const existingAccount = await Account.findOne({ where: { email } });
             if (existingAccount) {
-                throw new ValidationError('Email already exists');
+                throw new ValidationError('Email already exists (Student ID already used)');
             }
 
             const existingStudent = await Student.findOne({ where: { student_id } });
@@ -458,7 +460,8 @@ const userController = {
                 email,
                 password,
                 role_id: 3,
-                is_active: true
+                is_active: true,
+                first_login: true
             }, { transaction });
 
             const student = await Student.create({
@@ -481,6 +484,7 @@ const userController = {
                         id: account.id,
                         email: account.email,
                         is_active: account.is_active,
+                        auto_generated_password: password,
                         profile: student
                     }
                 }
@@ -604,7 +608,202 @@ const userController = {
         }
     },
 
-            // GET /users/students/export-excel 
+    // GET /users/roles 
+    getRoles: async (req, res, next) => {
+        try {
+            const roles = await Role.findAll({
+                attributes: ['id', 'name', 'description'],
+                order: [['id', 'ASC']]
+            });
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Roles retrieved successfully',
+                data: {
+                    roles
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // GET /users/profile - Get current user's profile
+    getCurrentUserProfile: async (req, res, next) => {
+        try {
+            const userId = req.user.id;
+            const userRole = req.user.role;
+
+            let account;
+            if (userRole === 'student') {
+                account = await Account.findByPk(userId, {
+                    include: [
+                        {
+                            model: Role,
+                            as: 'role',
+                            attributes: ['id', 'name']
+                        },
+                        {
+                            model: Student,
+                            as: 'student',
+                            attributes: ['id', 'student_id', 'first_name', 'last_name', 'phone', 'date_of_birth', 'address', 'avatar']
+                        }
+                    ]
+                });
+            } else if (userRole === 'lecturer') {
+                account = await Account.findByPk(userId, {
+                    include: [
+                        {
+                            model: Role,
+                            as: 'role',
+                            attributes: ['id', 'name']
+                        },
+                        {
+                            model: Lecturer,
+                            as: 'lecturer',
+                            attributes: ['id', 'first_name', 'last_name', 'phone', 'title', 'department', 'bio', 'avatar']
+                        }
+                    ]
+                });
+            } else {
+                account = await Account.findByPk(userId, {
+                    include: [
+                        {
+                            model: Role,
+                            as: 'role',
+                            attributes: ['id', 'name']
+                        }
+                    ]
+                });
+            }
+
+            if (!account) {
+                throw new NotFoundError('User not found');
+            }
+
+            const profileData = {
+                id: account.id,
+                email: account.email,
+                role: account.role.name,
+                is_active: account.is_active,
+                first_login: account.first_login,
+                last_login: account.last_login,
+                created_at: account.created_at
+            };
+
+            if (userRole === 'student' && account.student) {
+                profileData.profile = account.student;
+            } else if (userRole === 'lecturer' && account.lecturer) {
+                profileData.profile = account.lecturer;
+            }
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Profile retrieved successfully',
+                data: {
+                    user: profileData
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // PUT /users/profile - Update current user's profile
+    updateCurrentUserProfile: async (req, res, next) => {
+        const transaction = await sequelize.transaction();
+        
+        try {
+            const userId = req.user.id;
+            const userRole = req.user.role;
+            const { first_name, last_name, phone, date_of_birth, address, title, department, bio } = req.body;
+
+            const account = await Account.findByPk(userId);
+            if (!account) {
+                throw new NotFoundError('User not found');
+            }
+
+            if (userRole === 'student') {
+                const student = await Student.findOne({ where: { account_id: userId } });
+                if (!student) {
+                    throw new NotFoundError('Student profile not found');
+                }
+
+                await student.update({
+                    first_name: first_name || student.first_name,
+                    last_name: last_name || student.last_name,
+                    phone: phone || student.phone,
+                    date_of_birth: date_of_birth || student.date_of_birth,
+                    address: address || student.address
+                }, { transaction });
+
+            } else if (userRole === 'lecturer') {
+                const lecturer = await Lecturer.findOne({ where: { account_id: userId } });
+                if (!lecturer) {
+                    throw new NotFoundError('Lecturer profile not found');
+                }
+
+                await lecturer.update({
+                    first_name: first_name || lecturer.first_name,
+                    last_name: last_name || lecturer.last_name,
+                    phone: phone || lecturer.phone,
+                    title: title || lecturer.title,
+                    department: department || lecturer.department,
+                    bio: bio || lecturer.bio
+                }, { transaction });
+            }
+
+            await transaction.commit();
+
+            // Return updated profile
+            const updatedProfile = await userController.getCurrentUserProfile(req, res, next);
+
+        } catch (error) {
+            await transaction.rollback();
+            next(error);
+        }
+    },
+
+    // POST /users/profile/avatar - Upload avatar for current user
+    uploadCurrentUserAvatar: async (req, res, next) => {
+        try {
+            const userId = req.user.id;
+            const userRole = req.user.role;
+
+            if (!req.file) {
+                throw new ValidationError('No file uploaded');
+            }
+
+            const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+            if (userRole === 'student') {
+                const student = await Student.findOne({ where: { account_id: userId } });
+                if (!student) {
+                    throw new NotFoundError('Student profile not found');
+                }
+                await student.update({ avatar: avatarUrl });
+
+            } else if (userRole === 'lecturer') {
+                const lecturer = await Lecturer.findOne({ where: { account_id: userId } });
+                if (!lecturer) {
+                    throw new NotFoundError('Lecturer profile not found');
+                }
+                await lecturer.update({ avatar: avatarUrl });
+            }
+
+            res.status(200).json({
+                status: 'success',
+                message: 'Avatar uploaded successfully',
+                data: {
+                    avatar_url: avatarUrl
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // GET /users/students/export-excel 
     exportStudentsExcel: async (req, res, next) => {
         try {
             const students = await Account.findAll({
@@ -669,26 +868,6 @@ const userController = {
                 message: 'Avatar uploaded successfully',
                 data: {
                     avatar_url: avatarUrl
-                }
-            });
-        } catch (error) {
-            next(error);
-        }
-    },
-    
-    // GET /users/roles 
-    getRoles: async (req, res, next) => {
-        try {
-            const roles = await Role.findAll({
-                attributes: ['id', 'name', 'description'],
-                order: [['id', 'ASC']]
-            });
-
-            res.status(200).json({
-                status: 'success',
-                message: 'Roles retrieved successfully',
-                data: {
-                    roles
                 }
             });
         } catch (error) {

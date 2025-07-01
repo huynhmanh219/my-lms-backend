@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
@@ -9,6 +8,26 @@ const { userSchemas, commonSchemas } = require('../middleware/validation');
 const { uploadLimiter } = require('../middleware/rateLimiter');
 const upload = require('../config/multer');
 
+// Profile management for current user
+// GET /users/profile - Get current user's profile
+router.get('/profile',
+    auth,
+    userController.getCurrentUserProfile
+);
+
+// PUT /users/profile - Update current user's profile
+router.put('/profile',
+    auth,
+    userController.updateCurrentUserProfile
+);
+
+// POST /users/profile/avatar - Upload avatar for current user
+router.post('/profile/avatar',
+    auth,
+    uploadLimiter,
+    upload.single('avatar'),
+    userController.uploadCurrentUserAvatar
+);
 
 // GET /users/teachers 
 router.get('/teachers',

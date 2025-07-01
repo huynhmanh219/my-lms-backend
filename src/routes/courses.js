@@ -1,10 +1,8 @@
-
-
 const express = require('express');
 const router = express.Router();
 const courseController = require('../controllers/courseController');
 const { auth } = require('../middleware/auth');
-const { requireAdmin, requireLecturer, requireSelfOrElevated, requireCourseInstructor } = require('../middleware/roleCheck');
+const { requireAdmin, requireLecturer, requireSelfOrElevated, requireCourseInstructor, requireCourseEnrollment } = require('../middleware/roleCheck');
 const { validate, validateQuery, validateParams } = require('../middleware/validation');
 const { commonSchemas, courseSchemas } = require('../middleware/validation');
 
@@ -43,10 +41,10 @@ router.post('/classes',
     courseController.createClass
 );
 
-// GET /classes/:id - Get single class
+// GET /classes/:id - Get single class (Allow enrolled students)
 router.get('/classes/:id',
     auth,
-    requireLecturer,
+    requireCourseEnrollment,
     validateParams(commonSchemas.id),
     courseController.getClass
 );
@@ -75,6 +73,22 @@ router.get('/classes/:id/students',
     validateParams(commonSchemas.id),
     validateQuery(commonSchemas.pagination),
     courseController.getClassStudents
+);
+
+// GET /classes/:id/lectures - Get lectures in a class
+router.get('/classes/:id/lectures',
+    auth,
+    validateParams(commonSchemas.id),
+    validateQuery(commonSchemas.pagination),
+    courseController.getClassLectures
+);
+
+// GET /classes/:id/materials - Get materials in a class
+router.get('/classes/:id/materials',
+    auth,
+    validateParams(commonSchemas.id),
+    validateQuery(commonSchemas.pagination),
+    courseController.getClassMaterials
 );
 
 // POST /classes/:id/students - Enroll students to class

@@ -1,6 +1,5 @@
-
 const { AppError } = require('./errorHandler');
-const { CourseSection, StudentCourseSection } = require('../models');
+const { CourseSection, StudentCourseSection, Student } = require('../models');
 
 const requireRole = (roles) => {
     return (req, res, next) => {
@@ -149,18 +148,72 @@ const requireCourseEnrollment = async (req, res, next) => {
             return next(new AppError('Authentication required', 401));
         }
 
+        // Allow admin and lecturer to access without enrollment check
         if (['admin', 'lecturer'].includes(req.user.role)) {
             return next();
         }
 
         const courseId = req.params.courseId || req.params.id;
         if (courseId && req.user.role === 'student') {
+            console.log('?? [requireCourseEnrollment] Checking enrollment for:', {
+                accountId: req.user.id,
+                courseId: courseId,
+                userRole: req.user.role
+            });
+
+            // First, find the student record using account_id
+
+            const students = await Student.findOne({ 
+                where: { account_id: req.user.id } 
+            });
+
+            if (!students) {
+                console.log(' No student profile found for account_id:', req.user.id);
+                return res.status(403).json({
+                    status: 'error',
+                    message: 'Student profile not found'
+                });
+            }
+
+            console.log(' Found student:', { 
+                account_id: req.user.id, 
+                student_id: students.id 
+            });
+
+            console.log('🔍 [requireCourseEnrollment] Checking enrollment for:', {
+                accountId: req.user.id,
+                courseId: courseId,
+                userRole: req.user.role
+            });
+
+            // First, find the student record using account_id
+
+            const student = await Student.findOne({ 
+                where: { account_id: req.user.id } 
+            });
+
+            if (!student) {
+                console.log('🔍 No student profile found for account_id:', req.user.id);
+                return res.status(403).json({
+                    status: 'error',
+                    message: 'Student profile not found'
+                });
+            }
+
+            console.log('🔍 Found student:', { 
+                account_id: req.user.id, 
+                student_id: students.id 
+            });
+
+            // Now check enrollment using the student's primary key
             const enrollment = await StudentCourseSection.findOne({
                 where: {
-                    student_id: req.user.id,
+                    student_id: students.id,  // Use students.id instead of req.user.id
                     course_section_id: courseId
                 }
             });
+
+            console.log('🔍 Enrollment check result:', enrollment ? 'ENROLLED' : 'NOT ENROLLED');
 
             if (!enrollment) {
                 return res.status(403).json({
@@ -168,10 +221,13 @@ const requireCourseEnrollment = async (req, res, next) => {
                     message: 'You are not enrolled in this course'
                 });
             }
+
+            console.log('✅ [requireCourseEnrollment] Enrollment verified');
         }
 
         next();
     } catch (error) {
+        console.error('❌ [requireCourseEnrollment] Error:', error);
         next(error);
     }
 };
@@ -211,3 +267,4 @@ module.exports = {
     requireCourseEnrollment,
     requireSelfOrElevated
 }; 
+

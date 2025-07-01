@@ -1,5 +1,3 @@
-// Production Configuration for LMS Backend
-// Centralized configuration management for production deployment
 
 const config = {
   // Server Configuration

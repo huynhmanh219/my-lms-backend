@@ -1,5 +1,3 @@
-
-
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const bcrypt = require('bcryptjs');
@@ -37,6 +35,11 @@ const Account = sequelize.define('Account', {
     last_login: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    first_login: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        comment: 'True if user has not changed password after first login'
     },
     email_verified: {
         type: DataTypes.BOOLEAN,

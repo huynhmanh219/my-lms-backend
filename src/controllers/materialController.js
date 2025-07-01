@@ -1,10 +1,21 @@
-
 const { LearningMaterial, Subject, Chapter, Lecturer, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { getPagination, getPagingData } = require('../services/paginationService');
 const fileService = require('../services/fileService');
 const path = require('path');
 const fs = require('fs').promises;
+
+// Helper function to convert absolute path to relative path from uploads folder
+const getRelativeFilePath = (absolutePath) => {
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    return path.relative(uploadsDir, absolutePath).replace(/\\/g, '/'); // Normalize path separators
+};
+
+// Helper function to convert relative path back to absolute path  
+const getAbsoluteFilePath = (relativePath) => {
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    return path.join(uploadsDir, relativePath);
+};
 
 const materialController = {
 
@@ -272,10 +283,13 @@ const materialController = {
             const userId = req.user.id;
             const lecturer = await Lecturer.findOne({ where: { account_id: userId } });
 
+            // Convert absolute path to relative path for storage
+            const relativeFilePath = getRelativeFilePath(req.file.path);
+
             const material = await LearningMaterial.create({
                 title: title || req.file.originalname,
                 description,
-                file_path: req.file.path,
+                file_path: relativeFilePath, // Store relative path
                 file_name: req.file.originalname,
                 file_size: req.file.size,
                 mime_type: req.file.mimetype,
@@ -324,7 +338,10 @@ const materialController = {
                 });
             }
 
-            const fileExists = await fileService.fileExists(material.file_path);
+            // Convert relative file path back to absolute path
+            const absoluteFilePath = getAbsoluteFilePath(material.file_path);
+
+            const fileExists = await fileService.fileExists(absoluteFilePath);
             if (!fileExists) {
                 return res.status(404).json({
                     success: false,
@@ -338,7 +355,7 @@ const materialController = {
             );
 
             res.set(headers);
-            res.sendFile(path.resolve(material.file_path));
+            res.sendFile(path.resolve(absoluteFilePath));
         } catch (error) {
             next(error);
         }
@@ -360,9 +377,12 @@ const materialController = {
 
             const materials = [];
             for (const file of req.files) {
+                // Convert absolute path to relative path for storage
+                const relativeFilePath = getRelativeFilePath(file.path);
+                
                 const material = await LearningMaterial.create({
                     title: file.originalname,
-                    file_path: file.path,
+                    file_path: relativeFilePath, // Store relative path
                     file_name: file.originalname,
                     file_size: file.size,
                     mime_type: file.mimetype,

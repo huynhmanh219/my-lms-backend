@@ -1,4 +1,3 @@
-
 const authService = require('../services/authService');
 const { Account, Role, Student, Lecturer } = require('../models');
 const { ValidationError } = require('../middleware/errorHandler');
@@ -29,8 +28,7 @@ const authController = {
                     message: 'Invalid email or password'
                 });
             }
-
-            const isPasswordValid = await authService.comparePassword(password, user.password);
+            const isPasswordValid = await user.comparePassword(password);
             if (!isPasswordValid) {
                 return res.status(401).json({
                     status: 'error',
@@ -65,7 +63,8 @@ const authController = {
                         id: user.id,
                         email: user.email,
                         role: user.role.name,
-                        profile: userProfile
+                        profile: userProfile,
+                        first_login: user.first_login
                     },
                     tokens: {
                         accessToken,
@@ -103,8 +102,8 @@ const authController = {
                 throw new ValidationError('New password and confirmation do not match');
             }
 
-            if (newPassword.length < 6) {
-                throw new ValidationError('New password must be at least 6 characters long');
+            if (newPassword.length < 5) {
+                throw new ValidationError('New password must be at least 5 characters long');
             }
 
             const user = await Account.findByPk(userId);
@@ -123,8 +122,11 @@ const authController = {
                 });
             }
 
-            const hashedNewPassword = await authService.hashPassword(newPassword);
-            await user.update({ password: hashedNewPassword });
+            // Don't hash here - let the model hook handle hashing
+            await user.update({ 
+                password: newPassword,  // Pass plain text password
+                first_login: false
+            });
 
             res.status(200).json({
                 status: 'success',
@@ -202,9 +204,9 @@ const authController = {
                 });
             }
 
-            const hashedPassword = await authService.hashPassword(newPassword);
+            // Don't hash here - let the model hook handle hashing
             await user.update({
-                password: hashedPassword,
+                password: newPassword,  // Pass plain text password
                 password_reset_token: null,
                 password_reset_expires: null
             });
