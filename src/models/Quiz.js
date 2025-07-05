@@ -53,7 +53,7 @@ const Quiz = sequelize.define('Quiz', {
     attempts_allowed: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        defaultValue: 1,
+        defaultValue: 3,
         validate: {
             min: 1,
             max: 10

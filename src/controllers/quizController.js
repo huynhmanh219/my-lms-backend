@@ -1,4 +1,3 @@
-
 const { Quiz, Question, Answer, Submission, Response, Subject, CourseSection, Lecturer, Student, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { getOffsetLimit, getPaginationData, getPagingData } = require('../services/paginationService');
@@ -29,7 +28,13 @@ const quizController = {
                 include: [
                     { model: Subject, as: 'subject', attributes: ['id', 'subject_name', 'subject_code'] },
                     { model: CourseSection, as: 'courseSection', attributes: ['id', 'section_name'] },
-                    { model: Lecturer, as: 'lecturer', attributes: ['id', 'first_name', 'last_name'] }
+                    { model: Lecturer, as: 'lecturer', attributes: ['id', 'first_name', 'last_name'] },
+                    { 
+                        model: Question, 
+                        as: 'questions',
+                        attributes: ['id'],
+                        required: false
+                    }
                 ],
                 limit,
                 offset,
@@ -37,7 +42,20 @@ const quizController = {
                 distinct: true
             });
 
-            const response = getPagingData(quizzes, page, limit);
+            // Transform data to include question count
+            const transformedQuizzes = {
+                ...quizzes,
+                rows: quizzes.rows.map(quiz => {
+                    const quizData = quiz.toJSON();
+                    return {
+                        ...quizData,
+                        question_count: quizData.questions ? quizData.questions.length : 0,
+                        questions: undefined // Remove questions array from response
+                    };
+                })
+            };
+
+            const response = getPagingData(transformedQuizzes, page, limit);
             
             res.status(200).json({
                 success: true,
@@ -101,7 +119,7 @@ const quizController = {
                 course_section_id,
                 total_points = 100,
                 time_limit,
-                attempts_allowed = 1,
+                attempts_allowed = 3,
                 shuffle_questions = false,
                 shuffle_answers = false,
                 show_results = true,
@@ -241,7 +259,15 @@ const quizController = {
             next(error);
         }
     },
-
+    forceDeleteQuiz: async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            await Quiz.destroy({ where: { id } });
+            res.status(200).json({ success: true, message: 'Quiz deleted successfully' });
+        } catch (error) {
+            next(error);
+        }
+    },
     // POST /quizzes/:id/publish 
     publishQuiz: async (req, res, next) => {
         try {
@@ -895,11 +921,15 @@ const quizController = {
                 });
             }
 
-            const attemptCount = await Submission.count({
-                where: { quiz_id, student_id: student.id }
+            const validAttempts = await Submission.count({
+                where: { 
+                    quiz_id, 
+                    student_id: student.id,
+                    status: { [Op.in]: ['in_progress', 'submitted', 'graded'] }
+                }
             });
 
-            if (attemptCount >= quiz.attempts_allowed) {
+            if (validAttempts >= quiz.attempts_allowed) {
                 return res.status(400).json({
                     success: false,
                     message: 'Maximum attempts reached'
@@ -909,7 +939,7 @@ const quizController = {
             const submission = await Submission.create({
                 quiz_id,
                 student_id: student.id,
-                attempt_number: attemptCount + 1,
+                attempt_number: validAttempts + 3,
                 max_score: quiz.total_points,
                 ip_address: req.ip,
                 user_agent: req.get('User-Agent')
@@ -1114,6 +1144,90 @@ const quizController = {
         }
     },
 
+    // POST /quiz-attempts/:id/submit 
+    submitQuizAttempt: async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const userId = req.user.id;
+
+            const submission = await Submission.findByPk(id, {
+                include: [
+                    {
+                        model: Quiz,
+                        as: 'quiz',
+                        attributes: ['id', 'title', 'total_points', 'passing_score']
+                    },
+                    {
+                        model: Student,
+                        as: 'student',
+                        attributes: ['id', 'account_id']
+                    },
+                    {
+                        model: Response,
+                        as: 'responses',
+                        attributes: ['question_id', 'is_correct', 'points_earned']
+                    }
+                ]
+            });
+
+            if (!submission) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Quiz attempt not found'
+                });
+            }
+
+            // Check ownership
+            if (submission.student.account_id !== userId) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Not authorized to submit this quiz attempt'
+                });
+            }
+
+            if (submission.status !== 'in_progress') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Quiz attempt is already submitted'
+                });
+            }
+
+            const endTime = new Date();
+            const timeSpent = Math.floor((endTime - submission.started_at) / 1000); // seconds
+
+            // Calculate auto-graded score
+            const autoGradedResponses = submission.responses.filter(r => r.is_correct !== null);
+            const currentScore = autoGradedResponses.reduce((sum, r) => sum + parseFloat(r.points_earned || 0), 0);
+            const maxScore = parseFloat(submission.quiz.total_points || 100);
+            const percentage = maxScore > 0 ? (currentScore / maxScore * 100) : 0;
+
+            // Update submission
+            await submission.update({
+                status: 'submitted',
+                submitted_at: endTime,
+                time_spent: timeSpent,
+                score: parseFloat(currentScore.toFixed(2)),
+                max_score: parseFloat(maxScore.toFixed(2)),
+                percentage: parseFloat(percentage.toFixed(2))
+            });
+
+            res.status(200).json({
+                success: true,
+                message: 'Quiz submitted successfully',
+                data: {
+                    submission_id: submission.id,
+                    score: currentScore,
+                    max_score: maxScore,
+                    percentage: percentage.toFixed(2),
+                    time_spent: timeSpent,
+                    submitted_at: endTime
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
     // GET /quiz-attempts/:id/progress 
     getQuizProgress: async (req, res, next) => {
         try {
@@ -1152,7 +1266,7 @@ const quizController = {
             const progressPercentage = totalQuestions > 0 ? (answeredQuestions / totalQuestions * 100).toFixed(1) : 0;
 
             const autoGradedResponses = submission.responses.filter(r => r.is_correct !== null);
-            const currentScore = autoGradedResponses.reduce((sum, r) => sum + (r.points_earned || 0), 0);
+            const currentScore = autoGradedResponses.reduce((sum, r) => sum + parseFloat(r.points_earned || 0), 0);
 
             res.status(200).json({
                 success: true,
@@ -1308,9 +1422,17 @@ const quizController = {
     // GET /quiz-attempts/my-attempts 
     getMyAttempts: async (req, res, next) => {
         try {
-            const { page = 1, size = 10, status } = req.query;
-            const { limit, offset } = getOffsetLimit(page, size);
+            console.log('🔍 getMyAttempts called with query:', req.query);
+            console.log('🔍 getMyAttempts called with params:', req.params);
+            console.log('🔍 User ID:', req.user?.id);
+            
+            const { page = 1, size = 10, limit, status, quiz_id } = req.query;
+            // Use limit if provided, otherwise use size, default to 10
+            const pageSize = limit || size || 10;
+            const { limit: dbLimit, offset } = getOffsetLimit(page, pageSize);
             const userId = req.user.id;
+
+            console.log('🔍 Processed parameters:', { page, size, limit, pageSize, dbLimit, offset, status, quiz_id });
 
             const student = await Student.findOne({ where: { account_id: userId } });
             if (!student) {
@@ -1320,10 +1442,17 @@ const quizController = {
                 });
             }
 
+            console.log('🔍 Found student:', student.id);
+
             const whereConditions = { student_id: student.id };
             if (status) {
                 whereConditions.status = status;
             }
+            if (quiz_id) {
+                whereConditions.quiz_id = quiz_id;
+            }
+
+            console.log('🔍 Where conditions:', whereConditions);
 
             const submissions = await Submission.findAndCountAll({
                 where: whereConditions,
@@ -1341,12 +1470,13 @@ const quizController = {
                         ]
                     }
                 ],
-                limit,
+                limit: dbLimit,
                 offset,
                 order: [['created_at', 'DESC']]
             });
 
-            const response = getPagingData(submissions, page, limit);
+
+            const response = getPagingData(submissions, page, dbLimit);
 
             response.data = response.data.map(submission => {
                 const data = submission.toJSON();
@@ -1357,12 +1487,14 @@ const quizController = {
                 return data;
             });
 
+
             res.status(200).json({
                 success: true,
                 message: 'My quiz attempts retrieved successfully',
                 data: response
             });
         } catch (error) {
+            console.error('❌ getMyAttempts error:', error);
             next(error);
         }
     },
@@ -1451,7 +1583,7 @@ const quizController = {
                         average_score: averageScore,
                         average_percentage: averagePercentage,
                         pass_rate: passRate,
-                        completion_rate: '100%' // All included submissions are completed
+                        completion_rate: '100%' 
                     },
                     question_statistics: questionStats
                 }

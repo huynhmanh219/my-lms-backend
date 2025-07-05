@@ -5,13 +5,11 @@ const fileService = require('../services/fileService');
 const path = require('path');
 const fs = require('fs').promises;
 
-// Helper function to convert absolute path to relative path from uploads folder
 const getRelativeFilePath = (absolutePath) => {
     const uploadsDir = path.join(__dirname, '../../uploads');
-    return path.relative(uploadsDir, absolutePath).replace(/\\/g, '/'); // Normalize path separators
+    return path.relative(uploadsDir, absolutePath).replace(/\\/g, '/');
 };
 
-// Helper function to convert relative path back to absolute path  
 const getAbsoluteFilePath = (relativePath) => {
     const uploadsDir = path.join(__dirname, '../../uploads');
     return path.join(uploadsDir, relativePath);
@@ -283,13 +281,12 @@ const materialController = {
             const userId = req.user.id;
             const lecturer = await Lecturer.findOne({ where: { account_id: userId } });
 
-            // Convert absolute path to relative path for storage
             const relativeFilePath = getRelativeFilePath(req.file.path);
 
             const material = await LearningMaterial.create({
                 title: title || req.file.originalname,
                 description,
-                file_path: relativeFilePath, // Store relative path
+                file_path: relativeFilePath,
                 file_name: req.file.originalname,
                 file_size: req.file.size,
                 mime_type: req.file.mimetype,
@@ -338,7 +335,6 @@ const materialController = {
                 });
             }
 
-            // Convert relative file path back to absolute path
             const absoluteFilePath = getAbsoluteFilePath(material.file_path);
 
             const fileExists = await fileService.fileExists(absoluteFilePath);
@@ -377,12 +373,11 @@ const materialController = {
 
             const materials = [];
             for (const file of req.files) {
-                // Convert absolute path to relative path for storage
                 const relativeFilePath = getRelativeFilePath(file.path);
                 
                 const material = await LearningMaterial.create({
                     title: file.originalname,
-                    file_path: relativeFilePath, // Store relative path
+                    file_path: relativeFilePath,
                     file_name: file.originalname,
                     file_size: file.size,
                     mime_type: file.mimetype,

@@ -19,6 +19,9 @@ const Question = require('./Question');
 const Answer = require('./Answer');
 const Submission = require('./Submission');
 const Response = require('./Response');
+// Rating models
+const LectureRating = require('./LectureRating');
+const ClassRating = require('./ClassRating');
 
 // Define model associations
 const defineAssociations = () => {
@@ -129,6 +132,20 @@ const defineAssociations = () => {
     // Lecturer - Response associations (graded_by)
     Lecturer.hasMany(Response, { foreignKey: 'graded_by', as: 'gradedResponses' });
     Response.belongsTo(Lecturer, { foreignKey: 'graded_by', as: 'grader' });
+
+    // LectureRating associations
+    Lecture.hasMany(LectureRating, { foreignKey: 'lecture_id', as: 'ratings' });
+    LectureRating.belongsTo(Lecture, { foreignKey: 'lecture_id', as: 'lecture' });
+    
+    Student.hasMany(LectureRating, { foreignKey: 'student_id', as: 'lectureRatings' });
+    LectureRating.belongsTo(Student, { foreignKey: 'student_id', as: 'student' });
+
+    // ClassRating associations
+    CourseSection.hasMany(ClassRating, { foreignKey: 'class_id', as: 'ratings' });
+    ClassRating.belongsTo(CourseSection, { foreignKey: 'class_id', as: 'courseSection' });
+    
+    Student.hasMany(ClassRating, { foreignKey: 'student_id', as: 'classRatings' });
+    ClassRating.belongsTo(Student, { foreignKey: 'student_id', as: 'student' });
 };
 
 
@@ -152,5 +169,8 @@ module.exports = {
     Question,
     Answer,
     Submission,
-    Response
+    Response,
+    // Rating models
+    LectureRating,
+    ClassRating
 }; 

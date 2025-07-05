@@ -8,20 +8,19 @@ const { userSchemas, commonSchemas } = require('../middleware/validation');
 const { uploadLimiter } = require('../middleware/rateLimiter');
 const upload = require('../config/multer');
 
-// Profile management for current user
-// GET /users/profile - Get current user's profile
+// GET /users/profile 
 router.get('/profile',
     auth,
     userController.getCurrentUserProfile
 );
 
-// PUT /users/profile - Update current user's profile
+// PUT /users/profile 
 router.put('/profile',
     auth,
     userController.updateCurrentUserProfile
 );
 
-// POST /users/profile/avatar - Upload avatar for current user
+// POST /users/profile/avatar
 router.post('/profile/avatar',
     auth,
     uploadLimiter,
@@ -123,7 +122,7 @@ router.get('/students/:id',
 router.post('/students',
     auth,
     requireLecturer,
-    validate(userSchemas.createStudent), // RE-ENABLED
+    validate(userSchemas.createStudent),
     userController.createStudent
 );
 

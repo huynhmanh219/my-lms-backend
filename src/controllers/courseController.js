@@ -681,6 +681,7 @@ const courseController = {
 
             for (const student_id of student_ids) {
                 try {
+                    // For enrollStudents, student_id should be the actual database ID (integer)
                     const student = await Student.findByPk(student_id);
                     if (!student) {
                         results.failed.push({ student_id, error: 'Student not found' });
@@ -891,6 +892,27 @@ const courseController = {
                 throw new ValidationError('enrollments must be a non-empty array');
             }
 
+            // If user is a lecturer (not admin), verify they own all the classes they're enrolling to
+            if (req.user.role === 'lecturer') {
+                const accountId = req.user.id;
+                const lecturer = await Lecturer.findOne({ where: { account_id: accountId } });
+                
+                if (!lecturer) {
+                    throw new ValidationError('Lecturer profile not found');
+                }
+
+                // Get unique course section IDs from enrollments
+                const courseSectionIds = [...new Set(enrollments.map(e => e.course_section_id))];
+                
+                // Check if lecturer owns all these classes
+                for (const courseSectionId of courseSectionIds) {
+                    const courseSection = await CourseSection.findByPk(courseSectionId);
+                    if (!courseSection || courseSection.lecturer_id !== lecturer.id) {
+                        throw new ValidationError(`Access denied: You don't have permission to enroll students to class ${courseSectionId}`);
+                    }
+                }
+            }
+
             const results = {
                 successful: [],
                 failed: []
@@ -908,13 +930,42 @@ const courseController = {
                         continue;
                     }
 
-                    const student = await Student.findByPk(student_id);
-                    const courseSection = await CourseSection.findByPk(course_section_id);
+                    // Find student by student_id field (not primary key)
+                    let studentRecord = await Student.findOne({ 
+                        where: { student_id: student_id.toString() } 
+                    });
+                    
+                    if (!studentRecord) {
+                        // Auto-create account & student profile
+                        const Account = require('../models').Account;
+                        const Role = require('../models').Role;
+                        const StudentModel = require('../models').Student;
 
-                    if (!student) {
-                        results.failed.push({ enrollment, error: 'Student not found' });
-                        continue;
+                        const email = `${student_id}@lms.com`;
+                        // check duplicate email
+                        const existingAcc = await Account.findOne({ where: { email } });
+                        if (existingAcc) {
+                            results.failed.push({ enrollment, error: 'Email already exists, cannot auto-create' });
+                            continue;
+                        }
+                        
+                        const newAcc = await Account.create({
+                            email,
+                            password: student_id.toString(),
+                            role_id: 3,
+                            is_active: true,
+                            first_login: true
+                        }, { transaction });
+
+                        studentRecord = await StudentModel.create({
+                            account_id: newAcc.id,
+                            student_id: student_id.toString(),
+                            first_name: 'N/A',
+                            last_name: ''
+                        }, { transaction });
                     }
+
+                    const courseSection = await CourseSection.findByPk(course_section_id);
 
                     if (!courseSection) {
                         results.failed.push({ enrollment, error: 'Course section not found' });
@@ -931,7 +982,7 @@ const courseController = {
                     }
 
                     const existingEnrollment = await StudentCourseSection.findOne({
-                        where: { student_id, course_section_id }
+                        where: { student_id: studentRecord.id, course_section_id }
                     });
 
                     if (existingEnrollment) {
@@ -940,7 +991,7 @@ const courseController = {
                     }
 
                     await StudentCourseSection.create({
-                        student_id,
+                        student_id: studentRecord.id, // Use the actual student record ID
                         course_section_id,
                         enrollment_date: new Date(),
                         status: 'enrolled'

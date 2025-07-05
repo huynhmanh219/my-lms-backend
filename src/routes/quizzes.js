@@ -42,6 +42,13 @@ router.delete('/:id',
     quizController.deleteQuiz
 );
 
+router.delete('/:id/force',
+    auth,
+    requireLecturer,
+    validateParams(commonSchemas.id),
+    quizController.forceDeleteQuiz
+);
+
 router.post('/:id/publish',
     auth,
     requireLecturer,

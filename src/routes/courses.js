@@ -11,7 +11,7 @@ const { commonSchemas, courseSchemas } = require('../middleware/validation');
 // POST /enrollment/bulk    
 router.post('/enrollment/bulk',
     auth,
-    requireAdmin,
+    requireLecturer, // Changed from requireAdmin to requireLecturer to allow teachers
     validate(courseSchemas.bulkEnrollment),
     courseController.bulkEnrollment
 );
@@ -25,7 +25,7 @@ router.get('/enrollment/export',
 
 
 
-// GET /classes - Get course sections
+// GET /classes 
 router.get('/classes',
     auth,
     requireLecturer,
@@ -33,7 +33,7 @@ router.get('/classes',
     courseController.getClasses
 );
 
-// POST /classes - Create class
+// POST /classes 
 router.post('/classes',
     auth,
     requireLecturer,
@@ -41,7 +41,7 @@ router.post('/classes',
     courseController.createClass
 );
 
-// GET /classes/:id - Get single class (Allow enrolled students)
+// GET /classes/:id 
 router.get('/classes/:id',
     auth,
     requireCourseEnrollment,
@@ -49,7 +49,7 @@ router.get('/classes/:id',
     courseController.getClass
 );
 
-// PUT /classes/:id - Update class
+// PUT /classes/:id 
 router.put('/classes/:id',
     auth,
     requireCourseInstructor,
@@ -58,7 +58,7 @@ router.put('/classes/:id',
     courseController.updateClass
 );
 
-// DELETE /classes/:id - Delete class
+// DELETE /classes/:id 
 router.delete('/classes/:id',
     auth,
     requireCourseInstructor,
@@ -66,7 +66,7 @@ router.delete('/classes/:id',
     courseController.deleteClass
 );
 
-// GET /classes/:id/students - Get students in a class
+// GET /classes/:id/students 
 router.get('/classes/:id/students',
     auth,
     requireLecturer,
@@ -75,7 +75,7 @@ router.get('/classes/:id/students',
     courseController.getClassStudents
 );
 
-// GET /classes/:id/lectures - Get lectures in a class
+// GET /classes/:id/lectures 
 router.get('/classes/:id/lectures',
     auth,
     validateParams(commonSchemas.id),
@@ -83,7 +83,7 @@ router.get('/classes/:id/lectures',
     courseController.getClassLectures
 );
 
-// GET /classes/:id/materials - Get materials in a class
+// GET /classes/:id/materials 
 router.get('/classes/:id/materials',
     auth,
     validateParams(commonSchemas.id),
@@ -91,7 +91,7 @@ router.get('/classes/:id/materials',
     courseController.getClassMaterials
 );
 
-// POST /classes/:id/students - Enroll students to class
+// POST /classes/:id/students 
 router.post('/classes/:id/students',
     auth,
     requireCourseInstructor,
@@ -100,7 +100,7 @@ router.post('/classes/:id/students',
     courseController.enrollStudents
 );
 
-// DELETE /classes/:id/students/:studentId - Remove student from class
+// DELETE /classes/:id/students/:studentId 
 router.delete('/classes/:id/students/:studentId',
     auth,
     requireCourseInstructor,
@@ -108,7 +108,7 @@ router.delete('/classes/:id/students/:studentId',
     courseController.removeStudentFromClass
 );
 
-// GET /students/:id/classes - Get classes of a student
+// GET /students/:id/classes 
 router.get('/students/:id/classes',
     auth,
     requireSelfOrElevated,
@@ -118,7 +118,7 @@ router.get('/students/:id/classes',
 );
 
 
-// GET /courses - Get subjects with pagination
+// GET /courses 
 router.get('/',
     auth,
     requireLecturer,
@@ -126,7 +126,7 @@ router.get('/',
     courseController.getCourses
 );
 
-// POST /courses - Create subject
+// POST /courses 
 router.post('/',
     auth,
     requireLecturer,
@@ -134,7 +134,7 @@ router.post('/',
     courseController.createCourse
 );
 
-// GET /courses/:id - Get single course
+// GET /courses/:id 
 router.get('/:id',
     auth,
     requireLecturer,
@@ -142,7 +142,7 @@ router.get('/:id',
     courseController.getCourse
 );
 
-// PUT /courses/:id - Update course
+// PUT /courses/:id 
 router.put('/:id',
     auth,
     requireCourseInstructor,
@@ -151,7 +151,7 @@ router.put('/:id',
     courseController.updateCourse
 );
 
-// DELETE /courses/:id - Delete course
+// DELETE /courses/:id 
 router.delete('/:id',
     auth,
     requireCourseInstructor,
@@ -159,7 +159,7 @@ router.delete('/:id',
     courseController.deleteCourse
 );
 
-// GET /courses/:id/students - Get students enrolled in course
+// GET /courses/:id/students 
 router.get('/:id/students',
     auth,
     requireLecturer,

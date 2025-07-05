@@ -17,7 +17,6 @@
     "db:setup": "mysql -u root -p < database-setup.sql",
     "db:seed": "node database-seeder.js",
     "db:reset": "npm run db:setup && npm run db:seed",
-    
     "production": "cross-env NODE_ENV=production node server.js",
     "production:cluster": "cross-env NODE_ENV=production pm2 start ecosystem.config.js",
     "production:stop": "pm2 stop ecosystem.config.js",
@@ -25,57 +24,43 @@
     "production:reload": "pm2 reload ecosystem.config.js",
     "production:logs": "pm2 logs",
     "production:monitor": "pm2 monit",
-    
     "docker:build": "docker build -t lms-backend:latest .",
     "docker:run": "docker-compose up -d",
     "docker:stop": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "docker:clean": "docker system prune -f",
-    
     "deploy:staging": "bash deploy.sh staging",
     "deploy:production": "bash deploy.sh production",
     "deploy:rollback": "bash deploy.sh production --rollback",
-    
     "performance:test": "node scripts/performance-test.js",
     "performance:monitor": "clinic doctor -- node server.js",
     "performance:flame": "clinic flame -- node server.js",
     "performance:bubbleprof": "clinic bubbleprof -- node server.js",
     "performance:autocannon": "autocannon http://localhost:3000/health -c 10 -d 30",
-    
     "security:audit": "npm audit --audit-level=moderate",
     "security:check": "npm audit fix",
-    
     "backup:db": "node scripts/backup-database.js",
     "backup:files": "node scripts/backup-files.js",
-    
     "logs:view": "tail -f logs/app.log",
     "logs:error": "tail -f logs/error.log",
     "logs:security": "tail -f logs/security.log",
-    
     "cache:clear": "node -e \"require('./src/services/cacheService').cacheService.clear()\"",
     "cache:stats": "node -e \"console.log(JSON.stringify(require('./src/services/cacheService').cacheService.getStats(), null, 2))\"",
-    
     "health:check": "curl -f http://localhost:3000/health || exit 1",
     "health:deep": "node scripts/health-check.js",
-    
     "optimize:images": "node scripts/optimize-images.js",
     "optimize:database": "node scripts/optimize-database.js",
-    
     "migrate:up": "node scripts/migrate.js up",
     "migrate:down": "node scripts/migrate.js down",
     "migrate:status": "node scripts/migrate.js status",
-    
     "seed:dev": "cross-env NODE_ENV=development node database-seeder.js",
     "seed:test": "cross-env NODE_ENV=test node database-seeder.js",
-    
     "precommit": "npm run lint && npm run test",
     "prepush": "npm run test:coverage && npm run security:audit",
     "prestart": "npm run health:check || echo 'Starting fresh server...'",
     "postinstall": "echo 'LMS Backend dependencies installed successfully!'",
-    
     "build:docs": "swagger-jsdoc -d src/config/swagger.js src/routes/*.js -o api-docs.json",
     "serve:docs": "swagger-ui-serve api-docs.json",
-    
     "analyze:bundle": "npm ls --depth=0",
     "analyze:security": "npm audit --json > security-report.json",
     "analyze:performance": "npm run performance:test > performance-report.txt"
@@ -116,6 +101,7 @@
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.6.5",
     "node-cache": "^5.1.2",
+    "node-fetch": "^2.7.0",
     "nodemailer": "^6.9.7",
     "pm2": "^5.3.0",
     "redis": "^4.6.13",

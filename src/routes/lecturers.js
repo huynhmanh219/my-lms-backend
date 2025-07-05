@@ -5,7 +5,7 @@ const { auth } = require('../middleware/auth');
 const { validateQuery } = require('../middleware/validation');
 const { commonSchemas } = require('../middleware/validation');
 
-// GET /lecturers/me/classes - Get current lecturer's classes
+// GET /lecturers/me/classes 
 router.get('/me/classes',
     auth,
     validateQuery(commonSchemas.pagination),

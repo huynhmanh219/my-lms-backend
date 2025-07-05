@@ -231,7 +231,10 @@ const courseSchemas = {
     bulkEnrollment: Joi.object({
         enrollments: Joi.array().items(
             Joi.object({
-                student_id: Joi.number().integer().positive().required(),
+                student_id: Joi.alternatives().try(
+                    Joi.number().integer().positive(),
+                    Joi.string().min(1).max(20).pattern(/^[A-Za-z0-9]+$/)
+                ).required(),
                 course_section_id: Joi.number().integer().positive().required()
             })
         ).min(1).max(100).required()
@@ -440,6 +443,7 @@ const quizSchemas = {
     quizAttemptPagination: Joi.object({
         page: Joi.number().integer().min(1).default(1),
         limit: Joi.number().integer().min(1).max(100).default(10),
+        size: Joi.number().integer().min(1).max(100).default(10),
         status: Joi.string().valid('in_progress', 'completed', 'submitted').optional(),
         quiz_id: Joi.number().integer().positive().optional(),
         sort: Joi.string().valid('created_at', 'updated_at', 'score').default('created_at'),

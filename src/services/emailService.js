@@ -19,7 +19,7 @@ const emailService = {
             const transporter = createTransporter();
             
             const mailOptions = {
-                from: process.env.FROM_EMAIL || 'noreply@lms.com',
+                from: process.env.FROM_EMAIL || 'noreply@gmail.com',
                 to: email,
                 subject: 'Welcome to LMS',
                 html: `
@@ -43,7 +43,7 @@ const emailService = {
             const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
             
             const mailOptions = {
-                from: process.env.FROM_EMAIL || 'noreply@lms.com',
+                from: process.env.FROM_EMAIL || 'noreply@gmail.com',
                 to: email,
                 subject: 'Password Reset Request',
                 html: `

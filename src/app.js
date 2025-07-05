@@ -17,6 +17,8 @@ const quizAttemptRoutes = require('./routes/quiz-attempts');
 const studentRoutes = require('./routes/students');
 const lecturerRoutes = require('./routes/lecturers');
 const statisticsRoutes = require('./routes/statistics');
+const lectureRatingRoutes = require('./routes/lecture-ratings');
+const classRatingRoutes = require('./routes/class-ratings');
 
 const app = express();
 
@@ -71,10 +73,79 @@ app.get('/health', (req, res) => {
     res.json({ status: 'success', message: 'LMS Backend - CORS FIXED' });
 });
 
+// DEBUG: Direct route for testing quiz attempts - NO AUTH
+app.get('/api/debug-direct', async (req, res) => {
+    try {
+        console.log('DEBUG DIRECT: Getting quiz attempts directly');
+        const { quiz_id } = req.query;
+        
+        const { Submission, Quiz, Student, Account } = require('./models');
+        
+        // Find student SV010 directly
+        const account = await Account.findOne({ where: { email: 'SV010@lms.com' } });
+        if (!account) {
+            return res.json({
+                success: false,
+                message: 'Student account not found',
+                data: []
+            });
+        }
+        
+        const student = await Student.findOne({ where: { account_id: account.id } });
+        if (!student) {
+            return res.json({
+                success: false,
+                message: 'Student record not found',
+                data: []
+            });
+        }
+
+        const whereConditions = { student_id: student.id };
+        if (quiz_id) {
+            whereConditions.quiz_id = parseInt(quiz_id);
+        }
+
+        const submissions = await Submission.findAll({
+            where: whereConditions,
+            include: [
+                {
+                    model: Quiz,
+                    as: 'quiz',
+                    attributes: ['id', 'title', 'total_points', 'passing_score', 'attempts_allowed']
+                }
+            ],
+            order: [['created_at', 'DESC']]
+        });
+
+        console.log('DEBUG DIRECT: Found submissions:', submissions.length);
+        
+        res.json({
+            success: true,
+            message: 'Direct access successful',
+            studentInfo: {
+                account_id: account.id,
+                student_id: student.id,
+                email: account.email
+            },
+            query: req.query,
+            data: submissions
+        });
+    } catch (error) {
+        console.error('DEBUG DIRECT: Error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+            data: []
+        });
+    }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/lectures', lectureRoutes);
+app.use('/api/lecture-ratings', lectureRatingRoutes);
+app.use('/api/class-ratings', classRatingRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/questions', questionRoutes);
@@ -82,6 +153,7 @@ app.use('/api/quiz-attempts', quizAttemptRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/lecturers', lecturerRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api', lectureRatingRoutes);
 
 app.use('*', notFoundHandler);
 app.use(errorHandler);
