@@ -1,19 +1,15 @@
 const { Lecture, LectureProgress, CourseSection, CourseSectionProgress, Student, Chapter } = require('../models');
 const { Op } = require('sequelize');
 
-// Helper: recalculate section progress for a student
 const recalcSectionProgress = async (studentId, sectionId) => {
     const section = await CourseSection.findByPk(sectionId);
     if (!section) return;
 
-    // find chapters under subject
     const chapters = await Chapter.findAll({ where: { subject_id: section.subject_id }, attributes: ['id'] });
     const chapterIds = chapters.map(ch => ch.id);
 
-    // published lectures
     const totalLectures = await Lecture.count({ where: { chapter_id: { [Op.in]: chapterIds }, is_published: true } });
 
-    // completed lectures for student
     const completedCount = await LectureProgress.count({
         where: { student_id: studentId, status: 'completed' },
         include: [{ model: Lecture, as: 'lecture', where: { chapter_id: { [Op.in]: chapterIds }, is_published: true } }]
@@ -39,21 +35,18 @@ const recalcSectionProgress = async (studentId, sectionId) => {
     });
 };
 
-const MIN_READ_TIME_SEC = 10; // minimum time to consider lecture completed (changed from 30 to 10)
+const MIN_READ_TIME_SEC = 10;
 
-// Helper to calculate progress percent
 const calcProgressPercent = (timeSpent, scrolled) => {
-    // 50% derives from time, 50% from scroll to bottom
-    const timePart = Math.min(timeSpent / MIN_READ_TIME_SEC, 1) * 50; // up to 50
+    const timePart = Math.min(timeSpent / MIN_READ_TIME_SEC, 1) * 50;
     const scrollPart = scrolled ? 50 : 0;
     return Math.round(timePart + scrollPart);
 };
 
 const progressController = {
-    // POST /lectures/:id/start
     startLecture: async (req, res, next) => {
         try {
-            const { id } = req.params; // lecture id
+            const { id } = req.params;
             const accountId = req.user.id;
             const student = await Student.findOne({ where: { account_id: accountId } });
             if (!student) return res.status(403).json({ success: false, message: 'Only students can start progress' });
@@ -75,10 +68,9 @@ const progressController = {
         } catch (error) { next(error); }
     },
 
-    // PUT /lectures/:id/progress
     updateLecture: async (req, res, next) => {
         try {
-            const { id } = req.params; // lecture id
+            const { id } = req.params;
             const { time_delta = 0, scrolled_to_bottom = false } = req.body;
             const accountId = req.user.id;
             
@@ -118,7 +110,6 @@ const progressController = {
             let newStatus = progress.status;
             let justCompleted = false;
             
-            // Check completion criteria
             const hasEnoughTime = currentTimeSpent >= MIN_READ_TIME_SEC;
             const hasScrolledToBottom = progress.scrolled_to_bottom || scrolled_to_bottom;
             
@@ -134,18 +125,13 @@ const progressController = {
                 updates.status = 'completed';
                 updates.completed_at = new Date();
                 justCompleted = true;
-                console.log('🎉 MARKING LECTURE AS COMPLETED!');
             }
 
             await progress.update(updates);
-            console.log('✅ Progress updated in database');
 
-            // If completed, recalc section progress
             if (justCompleted) {
-                console.log('🔄 Recalculating section progress...');
                 const lecture = await Lecture.findByPk(id);
                 if (lecture) {
-                    // find course section that student belongs to having same subject
                     const chapters = await lecture.getChapter();
                     const subjectId = chapters ? chapters.subject_id : null;
                     if (subjectId) {
@@ -157,23 +143,18 @@ const progressController = {
 
             const finalProgress = await LectureProgress.findByPk(progress.id);
 
-            // Append progress percent
             const progressPercent = calcProgressPercent(finalProgress.time_spent_sec, finalProgress.scrolled_to_bottom);
             const responseData = { ...finalProgress.toJSON(), progress_percent: progressPercent };
 
-            console.log('📤 Sending response:', responseData);
-
             return res.status(200).json({ success: true, data: responseData });
         } catch (error) { 
-            console.error('❌ Update lecture error:', error);
             next(error); 
         }
     },
 
-    // GET /lectures/:id/progress (get current student's progress for a lecture)
     getLectureProgress: async (req, res, next) => {
         try {
-            const { id } = req.params; // lecture id
+            const { id } = req.params;
             const accountId = req.user.id;
             const student = await Student.findOne({ where: { account_id: accountId } });
             if (!student) return res.status(403).json({ success: false, message: 'Only students can view progress' });
@@ -199,27 +180,22 @@ const progressController = {
         } catch (error) { next(error); }
     },
 
-    // GET /course-sections/:id/progress (current student)
     getSectionProgressForStudent: async (req, res, next) => {
         try {
-            const { id } = req.params; // course section id
+            const { id } = req.params;
             const accountId = req.user.id;
             const student = await Student.findOne({ where: { account_id: accountId } });
             if (!student) return res.status(403).json({ success: false, message: 'Only students can view progress' });
 
-            // Get course section's subject
             const section = await CourseSection.findByPk(id);
             if (!section) return res.status(404).json({ success: false, message: 'Section not found' });
             const subjectId = section.subject_id;
 
-            // Find chapters under subject
             const chapters = await Chapter.findAll({ where: { subject_id: subjectId }, attributes: ['id'] });
             const chapterIds = chapters.map(ch => ch.id);
-
-            // Count published lectures in these chapters
+                
             const totalLectures = await Lecture.count({ where: { chapter_id: { [Op.in]: chapterIds }, is_published: true } });
 
-            // Completed count
             const completedCount = await LectureProgress.count({ where: { student_id: student.id, status: 'completed' }, include: [{ model: Lecture, as: 'lecture', where: { chapter_id: { [Op.in]: chapterIds }, is_published: true } }] });
 
             const completionRate = totalLectures === 0 ? 0 : ((completedCount / totalLectures) * 100).toFixed(2);
