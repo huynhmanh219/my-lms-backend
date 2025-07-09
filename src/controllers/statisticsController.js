@@ -1,5 +1,5 @@
 
-const { Student, Lecturer, Subject, CourseSection, Lecture, LearningMaterial, Quiz, Submission, Account, StudentCourseSection, Question, Response } = require('../models');
+const { Student, Lecturer, Subject, Chapter, CourseSection, Lecture, LearningMaterial, Quiz, Submission, Account, StudentCourseSection, Question, Response } = require('../models');
 const { getPagination, getPagingData } = require('../services/paginationService');
 const { Op, Sequelize } = require('sequelize');
 const sequelize = require('../config/database');
@@ -104,6 +104,104 @@ const statisticsController = {
                 data: dashboardData,
                 generated_at: new Date()
             });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /* NEW: Subject active/inactive trend */
+    getSubjectStatusTrend: async (req, res, next) => {
+        try {
+            const { months = 12 } = req.query;
+            const limitMonths = parseInt(months);
+
+            const Subject = require('../models').Subject;
+            // Use raw SQL for efficiency
+            const results = await sequelize.query(
+                `SELECT DATE_FORMAT(created_at, '%Y-%m') AS month,
+                        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active,
+                        SUM(CASE WHEN status = 'inactive' OR status IS NULL THEN 1 ELSE 0 END) AS inactive
+                 FROM subjects
+                 WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL :m MONTH)
+                 GROUP BY month
+                 ORDER BY month ASC`,
+                { replacements: { m: limitMonths }, type: Sequelize.QueryTypes.SELECT }
+            );
+
+            res.status(200).json({ success: true, data: results });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /* NEW: Publish status totals for chapters & lectures */
+    getPublishStatusTotals: async (req, res, next) => {
+        try {
+            const [chaptersPublished, chaptersDraft, lecturesPublished, lecturesDraft] = await Promise.all([
+                Chapter.count({ where: { status: 'active' } }),
+                Chapter.count({ where: { status: { [Op.ne]: 'active' } } }),
+                Lecture.count({ where: { is_published: true } }),
+                Lecture.count({ where: { is_published: false } })
+            ]);
+
+            res.status(200).json({
+                success: true,
+                data: {
+                    chapters: { published: chaptersPublished, draft: chaptersDraft },
+                    lectures: { published: lecturesPublished, draft: lecturesDraft }
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /* NEW: Account role totals */
+    getAccountRoleTotals: async (req, res, next) => {
+        try {
+            const Role = require('../models').Role;
+            const Account = require('../models').Account;
+
+            const roles = await Role.findAll({ attributes: ['id', 'name'] });
+            const counts = {};
+            for (const role of roles) {
+                const count = await Account.count({ where: { role_id: role.id } });
+                counts[role.name] = count;
+            }
+
+            res.status(200).json({ success: true, data: counts });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /* NEW: Top subjects by number of classes */
+    getTopSubjectsByClasses: async (req, res, next) => {
+        try {
+            const { limit = 5 } = req.query;
+            const Subject = require('../models').Subject;
+            const CourseSection = require('../models').CourseSection;
+
+            const top = await CourseSection.findAll({
+                attributes: [
+                    'subject_id',
+                    [Sequelize.fn('COUNT', Sequelize.col('CourseSection.id')), 'classes']
+                ],
+                group: ['subject_id'],
+                order: [[Sequelize.literal('classes'), 'DESC']],
+                limit: parseInt(limit),
+                include: [{ model: Subject, as: 'subject', attributes: ['subject_name'] }],
+                raw: true,
+                nest: true
+            });
+
+            const formatted = top.map(row => ({
+                subject_id: row.subject_id,
+                subject_name: row.subject.subject_name,
+                classes: row.classes
+            }));
+
+            res.status(200).json({ success: true, data: formatted });
         } catch (error) {
             next(error);
         }

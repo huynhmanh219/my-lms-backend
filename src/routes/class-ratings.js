@@ -10,7 +10,9 @@ router.get('/class/:classId/stats', classRatingController.getClassRatingStats);
 router.get('/class/:classId/my-rating', auth, requireStudent, classRatingController.getMyClassRating);
 router.post('/', auth, requireStudent, classRatingController.createClassRating);
 router.put('/:id', auth, requireStudent, classRatingController.updateClassRating);
-router.delete('/:id', auth, requireStudent, classRatingController.deleteClassRating);
+// Cho phép sinh viên (chủ rating) hoặc admin xóa
+const { requireAdmin } = require('../middleware/roleCheck');
+router.delete('/:id', auth, classRatingController.deleteClassRating);
 
 // General routes
 router.get('/top-rated', classRatingController.getTopRatedClasses);

@@ -67,4 +67,28 @@ router.get('/reports/grades',
     statisticsController.getGradesReport
 );
 
+router.get('/subjects-status',
+    auth,
+    requireAdmin,
+    statisticsController.getSubjectStatusTrend
+);
+
+router.get('/publish-status',
+    auth,
+    requireAdmin,
+    statisticsController.getPublishStatusTotals
+);
+
+router.get('/account-totals',
+    auth,
+    requireAdmin,
+    statisticsController.getAccountRoleTotals
+);
+
+router.get('/top-subjects',
+    auth,
+    requireAdmin,
+    statisticsController.getTopSubjectsByClasses
+);
+
 module.exports = router; 

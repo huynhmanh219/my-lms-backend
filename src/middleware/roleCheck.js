@@ -22,7 +22,7 @@ const requireRole = (roles) => {
 
 const requireAdmin = requireRole(['admin']);
 
-const requireLecturer = requireRole(['lecturer', 'admin']);
+const requireLecturer = requireRole(['lecturer', 'teacher', 'admin']);
 
 const requireStudent = requireRole(['student', 'lecturer', 'admin']);
 
@@ -68,7 +68,9 @@ const requireCourseInstructor = async (req, res, next) => {
             return next();
         }
 
-        if (req.user.role !== 'lecturer') {
+        const normalizedRole = req.user.role === 'teacher' ? 'lecturer' : req.user.role;
+
+        if (normalizedRole !== 'lecturer') {
             return res.status(403).json({
                 status: 'error',
                 message: 'Only lecturers can perform this action'

@@ -312,8 +312,8 @@ const classRatingController = {
                 });
             }
 
-            // Kiểm tra quyền sở hữu
-            if (classRating.student.account.id !== userId) {
+            // Cho phép admin xóa bất kỳ đánh giá nào; sinh viên chỉ xóa đánh giá của chính họ
+            if (req.user.role !== 'admin' && classRating.student.account.id !== userId) {
                 return res.status(403).json({
                     success: false,
                     message: 'You can only delete your own ratings'

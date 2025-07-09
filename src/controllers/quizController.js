@@ -1667,6 +1667,150 @@ const quizController = {
         } catch (error) {
             next(error);
         }
+    },
+    importQuestionsCsv: async (req, res, next) => {
+        try {
+            console.log('🔵 Import CSV started');
+            console.log('📁 File info:', req.file ? {
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size,
+                fieldname: req.file.fieldname
+            } : 'No file');
+            
+            const { id } = req.params;
+            const quizId = parseInt(id, 10); // Ensure numeric ID to avoid type issues
+            console.log('🆔 Quiz ID:', quizId);
+            
+            if (!req.file) {
+                console.log('❌ No file uploaded');
+                return res.status(400).json({ success: false, message: 'No file uploaded' });
+            }
+
+            console.log('📄 Parsing CSV...');
+            console.log('📄 Raw buffer length:', req.file.buffer.length);
+            console.log('📄 Raw buffer sample:', req.file.buffer.toString('utf8').substring(0, 200));
+            
+            const { parse } = require('csv-parse/sync');
+            
+            let records;
+            try {
+                // Try parsing with different options
+                records = parse(req.file.buffer, { 
+                    columns: true, 
+                    skip_empty_lines: true, 
+                    trim: true,
+                    delimiter: ',',
+                    quote: '"',
+                    encoding: 'utf8'
+                });
+            } catch (parseError) {
+                console.log('❌ CSV parse error:', parseError);
+                // Try with different encoding or delimiter
+                try {
+                    const csvText = req.file.buffer.toString('utf8');
+                    console.log('📄 CSV text sample:', csvText.substring(0, 300));
+                    records = parse(csvText, { 
+                        columns: true, 
+                        skip_empty_lines: true, 
+                        trim: true,
+                        delimiter: ',',
+                        quote: '"'
+                    });
+                } catch (secondError) {
+                    console.log('❌ Second parse attempt failed:', secondError);
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Could not parse CSV file: ' + parseError.message 
+                    });
+                }
+            }
+            
+            console.log('📊 Records parsed:', records.length);
+            console.log('📋 First record:', records[0]);
+            console.log('📋 All records:', records);
+
+            const requiredCols = ['question_text','answer_A','answer_B','answer_C','answer_D','correct_letter'];
+            let imported = 0, errors = [];
+
+            // Cache current max order once to minimise DB hits
+            console.log('🔍 Getting current max order...');
+            let currentOrder = await Question.max('order_index',{where:{quiz_id:quizId}}) || 0;
+            console.log('📊 Current max order:', currentOrder);
+            let totalAddedPoints = 0;
+
+            for(let i=0;i<records.length;i++){
+                console.log(`\n🔄 Processing record ${i+1}/${records.length}`);
+                const r = records[i];
+                console.log('📝 Record data:', r);
+                
+                const missing = requiredCols.filter(k=>!r[k] || r[k].trim()==='');
+                if(missing.length){ 
+                    console.log('❌ Missing columns:', missing);
+                    errors.push({row:i+2,msg:`Thiếu cột ${missing.join(',')}`}); 
+                    continue; 
+                }
+
+                const question_text = r.question_text;
+                const aA = r.answer_A, aB=r.answer_B, aC=r.answer_C, aD=r.answer_D;
+                const correct = r.correct_letter;
+                const points = r.points;
+                const correctUpper = correct.trim().toUpperCase();
+                
+                console.log('📋 Question:', question_text.substring(0, 50) + '...');
+                console.log('🎯 Correct answer:', correctUpper);
+                
+                if(!['A','B','C','D'].includes(correctUpper)){
+                    console.log('❌ Invalid correct letter:', correctUpper);
+                    errors.push({row:i+2,msg:'correct_letter invalid'});
+                    continue;
+                }
+                
+                // create question
+                currentOrder += 1;
+                const pointsNum = points?parseInt(points):1;
+                
+                console.log('💾 Creating question...');
+                const q = await Question.create({
+                    quiz_id:quizId,
+                    question_text:question_text.replace(/"/g,''),
+                    question_type:'multiple_choice',
+                    points: pointsNum,
+                    order_index:currentOrder
+                });
+                console.log('✅ Question created with ID:', q.id);
+                
+                const answers=[aA,aB,aC,aD];
+                console.log('💾 Creating answers...');
+                await Promise.all(answers.map((ans,idx)=>Answer.create({
+                    question_id:q.id,
+                    answer_text:ans.replace(/"/g,''),
+                    is_correct: idx===('ABCD'.indexOf(correctUpper)),
+                    order_index: idx+1
+                })));
+                console.log('✅ Answers created');
+                
+                imported++;
+                totalAddedPoints += pointsNum;
+            }
+
+            console.log(`\n📊 Import summary: ${imported} questions imported, ${errors.length} errors`);
+
+            // Update quiz total points after import
+            if(imported > 0){
+                console.log('🔄 Updating quiz total points...');
+                const totalPoints = await Question.sum('points', { where: { quiz_id: quizId } });
+                console.log('💯 New total points:', totalPoints);
+                await Quiz.update({ total_points: totalPoints || 0 }, { where: { id: quizId } });
+                console.log('✅ Quiz total points updated');
+            }
+
+            console.log('🎉 Import completed successfully');
+            res.status(200).json({success:true,data:{imported,errors}});
+        }catch(e){
+            console.error('❌ Import error:', e);
+            next(e);
+        } 
     }
 };
 

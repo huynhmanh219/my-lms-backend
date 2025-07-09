@@ -32,17 +32,22 @@ const storage = multer.diskStorage({
     }
 });
 
+// Memory storage for CSV files (import functionality)
+const memoryStorage = multer.memoryStorage();
+
 const fileFilter = (req, file, cb) => {
     const allowedTypes = {
         avatar: /jpeg|jpg|png|gif/,
         material: /pdf|doc|docx|ppt|pptx|xls|xlsx|txt|mp4|avi|mov|wmv|flv|webm|jpg|jpeg|png|gif|bmp|svg|webp/,
-        document: /pdf|doc|docx|txt/
+        document: /pdf|doc|docx|txt/,
+        file: /csv/
     };
     
     const allowedMimeTypes = {
         avatar: /^image\/(jpeg|jpg|png|gif)$/,
         material: /^(application\/(pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.presentationml\.presentation|vnd\.ms-excel|vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet)|text\/plain|video\/(mp4|avi|quicktime|x-msvideo|x-flv|webm)|image\/(jpeg|png|gif|bmp|svg\+xml|webp))$/,
-        document: /^(application\/(pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document)|text\/plain)$/
+        document: /^(application\/(pdf|msword|vnd\.openxmlformats-officedocument\.wordprocessingml\.document)|text\/plain)$/,
+        file: /^(text\/csv|application\/vnd\.ms-excel)$/
     };
     
     const extname = allowedTypes[file.fieldname]?.test(path.extname(file.originalname).toLowerCase());
@@ -71,4 +76,14 @@ const upload = multer({
     fileFilter: fileFilter
 });
 
-module.exports = upload; 
+// Memory storage upload for CSV import
+const uploadMemory = multer({
+    storage: memoryStorage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit for CSV files
+    },
+    fileFilter: fileFilter
+});
+
+module.exports = upload;
+module.exports.uploadMemory = uploadMemory; 

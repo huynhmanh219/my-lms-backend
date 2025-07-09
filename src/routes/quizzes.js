@@ -63,6 +63,13 @@ router.post('/:id/close',
     quizController.closeQuiz
 );
 
+router.post('/:id/import-csv',
+    auth,
+    requireLecturer,
+    upload.uploadMemory.single('file'),
+    quizController.importQuestionsCsv
+);
+
 router.get('/:id/questions',
     auth,
     validateParams(commonSchemas.id),
