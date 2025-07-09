@@ -35,6 +35,11 @@ const ClassRating = sequelize.define('ClassRating', {
         type: DataTypes.TEXT,
         allowNull: true
     },
+    is_approved: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
     created_at: {
         type: DataTypes.DATE,
         allowNull: false,
@@ -81,13 +86,13 @@ ClassRating.prototype.getFormattedDate = function() {
 };
 
 // Static methods
-ClassRating.getAverageRating = async function(classId) {
+ClassRating.getAverageRating = async function(classId, approvedOnly = false) {
     const result = await this.findOne({
         attributes: [
             [sequelize.fn('AVG', sequelize.col('rating')), 'avgRating'],
             [sequelize.fn('COUNT', sequelize.col('id')), 'totalRatings']
         ],
-        where: { class_id: classId },
+        where: { class_id: classId, ...(approvedOnly ? { is_approved: true } : {}) },
         raw: true
     });
     
@@ -97,13 +102,13 @@ ClassRating.getAverageRating = async function(classId) {
     };
 };
 
-ClassRating.getRatingDistribution = async function(classId) {
+ClassRating.getRatingDistribution = async function(classId, approvedOnly = false) {
     const ratings = await this.findAll({
         attributes: [
             'rating',
             [sequelize.fn('COUNT', sequelize.col('id')), 'count']
         ],
-        where: { class_id: classId },
+        where: { class_id: classId, ...(approvedOnly ? { is_approved: true } : {}) },
         group: ['rating'],
         raw: true
     });

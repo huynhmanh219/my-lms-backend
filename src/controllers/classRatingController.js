@@ -21,7 +21,7 @@ const classRatingController = {
 
             // Lấy ratings với thông tin sinh viên
             const { count, rows: ratings } = await ClassRating.findAndCountAll({
-                where: { class_id: classId },
+                where: { class_id: classId, is_approved: true },
                 include: [
                     {
                         model: Student,
@@ -42,8 +42,8 @@ const classRatingController = {
             });
 
             // Lấy thống kê
-            const stats = await ClassRating.getAverageRating(classId);
-            const distribution = await ClassRating.getRatingDistribution(classId);
+            const stats = await ClassRating.getAverageRating(classId, true);
+            const distribution = await ClassRating.getRatingDistribution(classId, true);
 
             res.status(200).json({
                 success: true,
@@ -80,8 +80,8 @@ const classRatingController = {
                 });
             }
 
-            const stats = await ClassRating.getAverageRating(classId);
-            const distribution = await ClassRating.getRatingDistribution(classId);
+            const stats = await ClassRating.getAverageRating(classId, true);
+            const distribution = await ClassRating.getRatingDistribution(classId, true);
 
             res.status(200).json({
                 success: true,
@@ -179,7 +179,8 @@ const classRatingController = {
                 class_id: class_id,
                 student_id: student.id,
                 rating: parseInt(rating),
-                comment: comment || null
+                comment: comment || null,
+                is_approved: false // Default to false
             });
 
             // Lấy rating vừa tạo với thông tin sinh viên
@@ -430,7 +431,39 @@ const classRatingController = {
         } catch (error) {
             next(error);
         }
-    }
+    },
+
+    // ADMIN: list pending ratings
+    getPendingRatings: async (req, res, next) => {
+        try {
+            const { page = 1, size = 10 } = req.query;
+            const limit = parseInt(size);
+            const offset = (parseInt(page) - 1) * limit;
+
+            const { count, rows } = await ClassRating.findAndCountAll({
+                where: { is_approved: false },
+                include: [
+                    { model: Student, as: 'student', attributes: ['id','first_name','last_name'] },
+                    { model: CourseSection, as: 'courseSection', attributes: ['id','section_name'] }
+                ],
+                order: [['created_at','DESC']],
+                limit,
+                offset
+            });
+
+            res.status(200).json({ success:true, data:{ ratings: rows, total: count } });
+        } catch(error){ next(error);} },
+
+    approveRating: async (req,res,next)=>{
+        try{
+            const { id } = req.params;
+            const rating = await ClassRating.findByPk(id);
+            if(!rating){
+                return res.status(404).json({ success:false, message:'Rating not found'});
+            }
+            await rating.update({ is_approved: true });
+            res.status(200).json({ success:true, message:'Rating approved'});
+        }catch(error){ next(error);} }
 };
 
 module.exports = classRatingController; 

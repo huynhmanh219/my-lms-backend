@@ -18,4 +18,8 @@ router.delete('/:id', auth, classRatingController.deleteClassRating);
 router.get('/top-rated', classRatingController.getTopRatedClasses);
 router.get('/my-ratings', auth, requireStudent, classRatingController.getMyClassRatings);
 
+// Admin routes
+router.get('/pending', auth, requireAdmin, classRatingController.getPendingRatings);
+router.put('/:id/approve', auth, requireAdmin, classRatingController.approveRating);
+
 module.exports = router; 
