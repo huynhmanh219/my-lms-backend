@@ -1,0 +1,223 @@
+const { Lecture, LectureProgress, CourseSection, CourseSectionProgress, Student, Chapter } = require('../models');
+
+const MIN_READ_TIME_SEC = 10; // minimum time to consider lecture completed (changed from 30 to 10)
+
+// Helper to calculate progress percent
+const calcProgressPercent = (timeSpent, scrolled) => {
+    // 50% derives from time, 50% from scroll to bottom
+    const timePart = Math.min(timeSpent / MIN_READ_TIME_SEC, 1) * 50; // up to 50
+    const scrollPart = scrolled ? 50 : 0;
+    return Math.round(timePart + scrollPart);
+};
+
+const progressController = {
+    // POST /lectures/:id/start
+    startLecture: async (req, res, next) => {
+        try {
+            const { id } = req.params; // lecture id
+            const accountId = req.user.id;
+            const student = await Student.findOne({ where: { account_id: accountId } });
+            if (!student) return res.status(403).json({ success: false, message: 'Only students can start progress' });
+
+            const [progress] = await LectureProgress.findOrCreate({
+                where: { student_id: student.id, lecture_id: id },
+                defaults: {
+                    status: 'in_progress',
+                    first_viewed_at: new Date(),
+                    last_viewed_at: new Date()
+                }
+            });
+
+            if (progress && !progress.first_viewed_at) {
+                await progress.update({ first_viewed_at: new Date(), last_viewed_at: new Date() });
+            }
+
+            return res.status(200).json({ success: true, data: progress });
+        } catch (error) { next(error); }
+    },
+
+    // PUT /lectures/:id/progress
+    updateLecture: async (req, res, next) => {
+        try {
+            const { id } = req.params; // lecture id
+            const { time_delta = 0, scrolled_to_bottom = false } = req.body;
+            const accountId = req.user.id;
+            
+            console.log('🔄 Update lecture progress:', {
+                lectureId: id,
+                time_delta,
+                scrolled_to_bottom,
+                userId: accountId
+            });
+            
+            const student = await Student.findOne({ where: { account_id: accountId } });
+            if (!student) return res.status(403).json({ success: false, message: 'Only students can update progress' });
+
+            const [progress] = await LectureProgress.findOrCreate({
+                where: { student_id: student.id, lecture_id: id },
+                defaults: {
+                    status: 'in_progress',
+                    first_viewed_at: new Date(),
+                    last_viewed_at: new Date()
+                }
+            });
+
+            const currentTimeSpent = progress.time_spent_sec + parseInt(time_delta, 10);
+            const updates = {
+                time_spent_sec: currentTimeSpent,
+                last_viewed_at: new Date()
+            };
+            if (scrolled_to_bottom) updates.scrolled_to_bottom = true;
+
+            console.log('📊 Current progress state:', {
+                currentTimeSpent,
+                scrolled_to_bottom: progress.scrolled_to_bottom || scrolled_to_bottom,
+                currentStatus: progress.status,
+                MIN_READ_TIME_SEC
+            });
+
+            let newStatus = progress.status;
+            let justCompleted = false;
+            
+            // Check completion criteria
+            const hasEnoughTime = currentTimeSpent >= MIN_READ_TIME_SEC;
+            const hasScrolledToBottom = progress.scrolled_to_bottom || scrolled_to_bottom;
+            
+            console.log('🎯 Completion check:', {
+                hasEnoughTime,
+                hasScrolledToBottom,
+                canComplete: hasEnoughTime && hasScrolledToBottom,
+                currentStatus: progress.status
+            });
+            
+            if (progress.status !== 'completed' && hasEnoughTime && hasScrolledToBottom) {
+                newStatus = 'completed';
+                updates.status = 'completed';
+                updates.completed_at = new Date();
+                justCompleted = true;
+                console.log('🎉 MARKING LECTURE AS COMPLETED!');
+            }
+
+            await progress.update(updates);
+            console.log('✅ Progress updated in database');
+
+            // If completed, recalc section progress
+            if (justCompleted) {
+                console.log('🔄 Recalculating section progress...');
+                const lecture = await Lecture.findByPk(id);
+                if (lecture) {
+                    const sectionId = lecture.chapter_id ? (await lecture.getChapter()).subject_id : lecture.course_section_id || null;
+                    const section = await CourseSection.findByPk(sectionId || 0);
+                    if (section) {
+                        const totalLectures = await Lecture.count({ where: { chapter_id: lecture.chapter_id } });
+                        const completedCount = await LectureProgress.count({
+                            where: {
+                                student_id: student.id,
+                                status: 'completed'
+                            },
+                            include: [{ model: Lecture, as: 'lecture', where: { chapter_id: lecture.chapter_id } }]
+                        });
+
+                        const [sectionProg] = await CourseSectionProgress.findOrCreate({
+                            where: { student_id: student.id, course_section_id: section.id },
+                            defaults: {
+                                total_lectures: totalLectures,
+                                lectures_completed: completedCount,
+                                completion_rate: ((completedCount / (totalLectures || 1)) * 100).toFixed(2),
+                                updated_at: new Date()
+                            }
+                        });
+                        await sectionProg.update({
+                            total_lectures: totalLectures,
+                            lectures_completed: completedCount,
+                            completion_rate: ((completedCount / (totalLectures || 1)) * 100).toFixed(2),
+                            updated_at: new Date()
+                        });
+                        console.log('✅ Section progress updated');
+                    }
+                }
+            }
+
+            const finalProgress = await LectureProgress.findByPk(progress.id);
+
+            // Append progress percent
+            const progressPercent = calcProgressPercent(finalProgress.time_spent_sec, finalProgress.scrolled_to_bottom);
+            const responseData = { ...finalProgress.toJSON(), progress_percent: progressPercent };
+
+            console.log('📤 Sending response:', responseData);
+
+            return res.status(200).json({ success: true, data: responseData });
+        } catch (error) { 
+            console.error('❌ Update lecture error:', error);
+            next(error); 
+        }
+    },
+
+    // GET /lectures/:id/progress (get current student's progress for a lecture)
+    getLectureProgress: async (req, res, next) => {
+        try {
+            const { id } = req.params; // lecture id
+            const accountId = req.user.id;
+            const student = await Student.findOne({ where: { account_id: accountId } });
+            if (!student) return res.status(403).json({ success: false, message: 'Only students can view progress' });
+
+            const progress = await LectureProgress.findOne({ 
+                where: { student_id: student.id, lecture_id: id } 
+            });
+            
+            if (!progress) {
+                return res.status(200).json({ 
+                    success: true, 
+                    data: { 
+                        status: 'not_started',
+                        time_spent_sec: 0,
+                        scrolled_to_bottom: false,
+                        progress_percent: 0
+                    } 
+                });
+            }
+
+            const progressPercent = calcProgressPercent(progress.time_spent_sec, progress.scrolled_to_bottom);
+            return res.status(200).json({ success: true, data: { ...progress.toJSON(), progress_percent: progressPercent } });
+        } catch (error) { next(error); }
+    },
+
+    // GET /course-sections/:id/progress (current student)
+    getSectionProgressForStudent: async (req, res, next) => {
+        try {
+            const { id } = req.params; // course section id
+            const accountId = req.user.id;
+            const student = await Student.findOne({ where: { account_id: accountId } });
+            if (!student) return res.status(403).json({ success: false, message: 'Only students can view progress' });
+
+            // Get course section's subject
+            const section = await CourseSection.findByPk(id);
+            if (!section) return res.status(404).json({ success: false, message: 'Section not found' });
+            const subjectId = section.subject_id;
+
+            // Find chapters under subject
+            const { Op } = require('sequelize');
+            const chapters = await Chapter.findAll({ where: { subject_id: subjectId }, attributes: ['id'] });
+            const chapterIds = chapters.map(ch => ch.id);
+
+            // Count published lectures in these chapters
+            const totalLectures = await Lecture.count({ where: { chapter_id: { [Op.in]: chapterIds }, is_published: true } });
+
+            // Completed count
+            const completedCount = await LectureProgress.count({ where: { student_id: student.id, status: 'completed' }, include: [{ model: Lecture, as: 'lecture', where: { chapter_id: { [Op.in]: chapterIds }, is_published: true } }] });
+
+            const completionRate = totalLectures === 0 ? 0 : ((completedCount / totalLectures) * 100).toFixed(2);
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    total_lectures: totalLectures,
+                    lectures_completed: completedCount,
+                    completion_rate: completionRate
+                }
+            });
+        } catch (error) { next(error); }
+    }
+};
+
+module.exports = progressController; 

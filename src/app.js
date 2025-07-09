@@ -19,6 +19,7 @@ const lecturerRoutes = require('./routes/lecturers');
 const statisticsRoutes = require('./routes/statistics');
 const lectureRatingRoutes = require('./routes/lecture-ratings');
 const classRatingRoutes = require('./routes/class-ratings');
+const progressRoutes = require('./routes/progress');
 
 const app = express();
 
@@ -153,6 +154,7 @@ app.use('/api/quiz-attempts', quizAttemptRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/lecturers', lecturerRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api/progress', progressRoutes);
 app.use('/api', lectureRatingRoutes);
 
 app.use('*', notFoundHandler);

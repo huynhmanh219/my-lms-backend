@@ -22,6 +22,8 @@ const Response = require('./Response');
 // Rating models
 const LectureRating = require('./LectureRating');
 const ClassRating = require('./ClassRating');
+const LectureProgress = require('./LectureProgress');
+const CourseSectionProgress = require('./CourseSectionProgress');
 
 // Define model associations
 const defineAssociations = () => {
@@ -146,6 +148,19 @@ const defineAssociations = () => {
     
     Student.hasMany(ClassRating, { foreignKey: 'student_id', as: 'classRatings' });
     ClassRating.belongsTo(Student, { foreignKey: 'student_id', as: 'student' });
+
+    // Progress associations
+    Student.hasMany(LectureProgress, { foreignKey: 'student_id', as: 'lectureProgresses' });
+    LectureProgress.belongsTo(Student, { foreignKey: 'student_id', as: 'student' });
+
+    Lecture.hasMany(LectureProgress, { foreignKey: 'lecture_id', as: 'progress' });
+    LectureProgress.belongsTo(Lecture, { foreignKey: 'lecture_id', as: 'lecture' });
+
+    Student.hasMany(CourseSectionProgress, { foreignKey: 'student_id', as: 'sectionProgresses' });
+    CourseSectionProgress.belongsTo(Student, { foreignKey: 'student_id', as: 'student' });
+
+    CourseSection.hasMany(CourseSectionProgress, { foreignKey: 'course_section_id', as: 'progresses' });
+    CourseSectionProgress.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
 };
 
 
@@ -172,5 +187,8 @@ module.exports = {
     Response,
     // Rating models
     LectureRating,
-    ClassRating
+    ClassRating,
+    // Progress models
+    LectureProgress,
+    CourseSectionProgress
 }; 
