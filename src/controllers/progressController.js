@@ -1,4 +1,43 @@
 const { Lecture, LectureProgress, CourseSection, CourseSectionProgress, Student, Chapter } = require('../models');
+const { Op } = require('sequelize');
+
+// Helper: recalculate section progress for a student
+const recalcSectionProgress = async (studentId, sectionId) => {
+    const section = await CourseSection.findByPk(sectionId);
+    if (!section) return;
+
+    // find chapters under subject
+    const chapters = await Chapter.findAll({ where: { subject_id: section.subject_id }, attributes: ['id'] });
+    const chapterIds = chapters.map(ch => ch.id);
+
+    // published lectures
+    const totalLectures = await Lecture.count({ where: { chapter_id: { [Op.in]: chapterIds }, is_published: true } });
+
+    // completed lectures for student
+    const completedCount = await LectureProgress.count({
+        where: { student_id: studentId, status: 'completed' },
+        include: [{ model: Lecture, as: 'lecture', where: { chapter_id: { [Op.in]: chapterIds }, is_published: true } }]
+    });
+
+    const completionRate = totalLectures === 0 ? 0 : ((completedCount / totalLectures) * 100).toFixed(2);
+
+    const [sectionProg] = await CourseSectionProgress.findOrCreate({
+        where: { student_id: studentId, course_section_id: sectionId },
+        defaults: {
+            total_lectures: totalLectures,
+            lectures_completed: completedCount,
+            completion_rate: completionRate,
+            updated_at: new Date()
+        }
+    });
+
+    await sectionProg.update({
+        total_lectures: totalLectures,
+        lectures_completed: completedCount,
+        completion_rate: completionRate,
+        updated_at: new Date()
+    });
+};
 
 const MIN_READ_TIME_SEC = 10; // minimum time to consider lecture completed (changed from 30 to 10)
 
@@ -106,34 +145,12 @@ const progressController = {
                 console.log('🔄 Recalculating section progress...');
                 const lecture = await Lecture.findByPk(id);
                 if (lecture) {
-                    const sectionId = lecture.chapter_id ? (await lecture.getChapter()).subject_id : lecture.course_section_id || null;
-                    const section = await CourseSection.findByPk(sectionId || 0);
-                    if (section) {
-                        const totalLectures = await Lecture.count({ where: { chapter_id: lecture.chapter_id } });
-                        const completedCount = await LectureProgress.count({
-                            where: {
-                                student_id: student.id,
-                                status: 'completed'
-                            },
-                            include: [{ model: Lecture, as: 'lecture', where: { chapter_id: lecture.chapter_id } }]
-                        });
-
-                        const [sectionProg] = await CourseSectionProgress.findOrCreate({
-                            where: { student_id: student.id, course_section_id: section.id },
-                            defaults: {
-                                total_lectures: totalLectures,
-                                lectures_completed: completedCount,
-                                completion_rate: ((completedCount / (totalLectures || 1)) * 100).toFixed(2),
-                                updated_at: new Date()
-                            }
-                        });
-                        await sectionProg.update({
-                            total_lectures: totalLectures,
-                            lectures_completed: completedCount,
-                            completion_rate: ((completedCount / (totalLectures || 1)) * 100).toFixed(2),
-                            updated_at: new Date()
-                        });
-                        console.log('✅ Section progress updated');
+                    // find course section that student belongs to having same subject
+                    const chapters = await lecture.getChapter();
+                    const subjectId = chapters ? chapters.subject_id : null;
+                    if (subjectId) {
+                        const section = await CourseSection.findOne({ where: { subject_id: subjectId } });
+                        if (section) await recalcSectionProgress(student.id, section.id);
                     }
                 }
             }
@@ -196,7 +213,6 @@ const progressController = {
             const subjectId = section.subject_id;
 
             // Find chapters under subject
-            const { Op } = require('sequelize');
             const chapters = await Chapter.findAll({ where: { subject_id: subjectId }, attributes: ['id'] });
             const chapterIds = chapters.map(ch => ch.id);
 

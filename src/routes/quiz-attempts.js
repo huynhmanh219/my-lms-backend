@@ -6,6 +6,7 @@ const { requireStudent } = require('../middleware/roleCheck');
 const { validateParams, validateQuery } = require('../middleware/validation');
 const { commonSchemas, quizSchemas } = require('../middleware/validation');
 const { quizLimiter } = require('../middleware/rateLimiter');
+router.get('/my-attempts', auth, requireStudent, quizController.getMyAttempts);
 
 router.post('/',
     auth,

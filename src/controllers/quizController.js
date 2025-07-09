@@ -1002,6 +1002,12 @@ const quizController = {
                 });
             }
 
+            // Ownership check
+            const student = await Student.findOne({ where: { account_id: req.user.id } });
+            if (!student || submission.student_id !== student.id) {
+                return res.status(403).json({ success: false, message: 'Not authorized to view this attempt' });
+            }
+
             const submissionData = submission.toJSON();
             submissionData.time_spent_formatted = submission.getTimeSpentFormatted();
             submissionData.grade = submission.getGrade();
@@ -1394,6 +1400,12 @@ const quizController = {
                     success: false,
                     message: 'Quiz attempt not found'
                 });
+            }
+
+            // Ownership check
+            const student = await Student.findOne({ where: { account_id: req.user.id } });
+            if (!student || submission.student_id !== student.id) {
+                return res.status(403).json({ success: false, message: 'Not authorized to view this result' });
             }
 
             if (submission.status === 'in_progress') {
