@@ -24,6 +24,9 @@ const LectureRating = require('./LectureRating');
 const ClassRating = require('./ClassRating');
 const LectureProgress = require('./LectureProgress');
 const CourseSectionProgress = require('./CourseSectionProgress');
+const Discussion = require('./Discussion');
+const DiscussionPost = require('./DiscussionPost');
+const ClassChatMessage = require('./ClassChatMessage');
 
 // Define model associations
 const defineAssociations = () => {
@@ -161,6 +164,29 @@ const defineAssociations = () => {
 
     CourseSection.hasMany(CourseSectionProgress, { foreignKey: 'course_section_id', as: 'progresses' });
     CourseSectionProgress.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
+
+    // Discussion associations
+    CourseSection.hasMany(Discussion, { foreignKey: 'course_section_id', as: 'discussions', onDelete: 'CASCADE' });
+    Discussion.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
+
+    Account.hasMany(Discussion, { foreignKey: 'created_by', as: 'createdDiscussions' });
+    Discussion.belongsTo(Account, { foreignKey: 'created_by', as: 'creator' });
+
+    Discussion.hasMany(DiscussionPost, { foreignKey: 'discussion_id', as: 'posts', onDelete: 'CASCADE' });
+    DiscussionPost.belongsTo(Discussion, { foreignKey: 'discussion_id', as: 'discussion' });
+
+    DiscussionPost.belongsTo(Account, { foreignKey: 'posted_by', as: 'author' });
+    Account.hasMany(DiscussionPost, { foreignKey: 'posted_by', as: 'discussionPosts' });
+
+    DiscussionPost.belongsTo(DiscussionPost, { foreignKey: 'parent_post_id', as: 'parent' });
+    DiscussionPost.hasMany(DiscussionPost, { foreignKey: 'parent_post_id', as: 'replies' });
+
+    // Chat associations
+    CourseSection.hasMany(ClassChatMessage, { foreignKey: 'course_section_id', as: 'chatMessages', onDelete: 'CASCADE' });
+    ClassChatMessage.belongsTo(CourseSection, { foreignKey: 'course_section_id', as: 'courseSection' });
+
+    Account.hasMany(ClassChatMessage, { foreignKey: 'sender_id', as: 'sentMessages' });
+    ClassChatMessage.belongsTo(Account, { foreignKey: 'sender_id', as: 'sender' });
 };
 
 
@@ -190,5 +216,8 @@ module.exports = {
     ClassRating,
     // Progress models
     LectureProgress,
-    CourseSectionProgress
+    CourseSectionProgress,
+    Discussion,
+    DiscussionPost,
+    ClassChatMessage
 }; 

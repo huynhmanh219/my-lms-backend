@@ -920,7 +920,7 @@ const courseController = {
 
             for (const enrollment of enrollments) {
                 try {
-                    const { student_id, course_section_id } = enrollment;
+                    const { student_id, course_section_id, personal_email } = enrollment;
 
                     if (!student_id || !course_section_id) {
                         results.failed.push({ 
@@ -930,7 +930,6 @@ const courseController = {
                         continue;
                     }
 
-                    // Find student by student_id field (not primary key)
                     let studentRecord = await Student.findOne({ 
                         where: { student_id: student_id.toString() } 
                     });
@@ -941,17 +940,18 @@ const courseController = {
                         const Role = require('../models').Role;
                         const StudentModel = require('../models').Student;
 
-                        const email = `${student_id}@lms.com`;
+                        const loginEmail = `${student_id}@lms.com`;
+                        const tempPassword = student_id.toString();
                         // check duplicate email
-                        const existingAcc = await Account.findOne({ where: { email } });
+                        const existingAcc = await Account.findOne({ where: { email: loginEmail } });
                         if (existingAcc) {
                             results.failed.push({ enrollment, error: 'Email already exists, cannot auto-create' });
                             continue;
                         }
                         
                         const newAcc = await Account.create({
-                            email,
-                            password: student_id.toString(),
+                            email: loginEmail,
+                            password: tempPassword,
                             role_id: 3,
                             is_active: true,
                             first_login: true
@@ -961,8 +961,32 @@ const courseController = {
                             account_id: newAcc.id,
                             student_id: student_id.toString(),
                             first_name: 'N/A',
-                            last_name: ''
+                            last_name: '',
+                            personal_email: personal_email || null
                         }, { transaction });
+
+                        // send welcome email if provided
+                        if (personal_email) {
+                            try {
+                                await require('../services/emailService').sendWelcomeEmail(personal_email, 'Bạn', loginEmail, tempPassword);
+                            } catch (e) {
+                                console.error('Bulk enrollment email error:', e.message);
+                            }
+                        }
+                    }
+
+                    // If student exists and personal_email provided but empty in DB, update and send email
+                    if (studentRecord && personal_email && !studentRecord.personal_email) {
+                        await studentRecord.update({ personal_email }, { transaction });
+                        try {
+                            const AccountModel = require('../models').Account;
+                            const acc = await AccountModel.findByPk(studentRecord.account_id);
+                            const loginEmail = acc ? acc.email : `${studentRecord.student_id}@lms.com`;
+                            const tempPassword = studentRecord.student_id;
+                            await require('../services/emailService').sendWelcomeEmail(personal_email, `${studentRecord.first_name} ${studentRecord.last_name}`.trim() || 'Bạn', loginEmail, tempPassword);
+                        } catch (e) {
+                            console.error('Bulk enrollment existing student email error:', e.message);
+                        }
                     }
 
                     const courseSection = await CourseSection.findByPk(course_section_id);
@@ -991,7 +1015,7 @@ const courseController = {
                     }
 
                     await StudentCourseSection.create({
-                        student_id: studentRecord.id, // Use the actual student record ID
+                        student_id: studentRecord.id, 
                         course_section_id,
                         enrollment_date: new Date(),
                         status: 'enrolled'

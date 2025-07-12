@@ -65,7 +65,7 @@ const progressController = {
             }
 
             return res.status(200).json({ success: true, data: progress });
-        } catch (error) { next(error); }
+        } catch (error) { next(errFor); }
     },
 
     updateLecture: async (req, res, next) => {

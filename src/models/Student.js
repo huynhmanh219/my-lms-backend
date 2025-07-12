@@ -30,6 +30,13 @@ const Student = sequelize.define('Student', {
         type: DataTypes.STRING(100),
         allowNull: false
     },
+    personal_email: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        validate: {
+            isEmail: true
+        }
+    },
     phone: {
         type: DataTypes.STRING(20),
         allowNull: true

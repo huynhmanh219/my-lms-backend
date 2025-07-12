@@ -165,6 +165,7 @@ const userSchemas = {
         student_id: Joi.string().min(3).max(20).required(),
         first_name: Joi.string().min(2).max(50).required(),
         last_name: Joi.string().min(2).max(50).required(),
+        personal_email: Joi.string().email().optional(),
         phone: Joi.string().pattern(/^[0-9+\-\s()]+$/).optional(),
         date_of_birth: Joi.date().optional(),
         address: Joi.string().max(500).optional()
@@ -175,6 +176,7 @@ const userSchemas = {
         student_id: Joi.string().min(3).max(20).optional(),
         first_name: Joi.string().min(2).max(50).optional(),
         last_name: Joi.string().min(2).max(50).optional(),
+        personal_email: Joi.string().email().optional(),
         phone: Joi.string().pattern(/^[0-9+\-\s()]+$/).optional(),
         date_of_birth: Joi.date().optional(),
         address: Joi.string().max(500).optional(),
@@ -235,6 +237,7 @@ const courseSchemas = {
                     Joi.number().integer().positive(),
                     Joi.string().min(1).max(20).pattern(/^[A-Za-z0-9]+$/)
                 ).required(),
+                personal_email: Joi.string().email().optional(),
                 course_section_id: Joi.number().integer().positive().required()
             })
         ).min(1).max(100).required()

@@ -1,4 +1,5 @@
 const { Account, Role, Student, Lecturer } = require('../models');
+const emailService = require('../services/emailService');
 const authService = require('../services/authService');
 const paginationService = require('../services/paginationService');
 const { ValidationError, NotFoundError } = require('../middleware/errorHandler');
@@ -441,7 +442,7 @@ const userController = {
         const transaction = await sequelize.transaction();
         
         try {
-            const { student_id, first_name, last_name, phone, date_of_birth, address } = req.body;
+            const { student_id, first_name, last_name, phone, date_of_birth, address, personal_email } = req.body;
 
             const email = `${student_id}@lms.com`;
             const password = student_id;
@@ -471,10 +472,20 @@ const userController = {
                 last_name,
                 phone,
                 date_of_birth,
-                address
+                address,
+                personal_email: personal_email || null
             }, { transaction });
 
             await transaction.commit();
+
+            // Send welcome email to personal email if provided
+            if (personal_email) {
+                try {
+                    await emailService.sendWelcomeEmail(personal_email, `${first_name} ${last_name}`, account.email, password);
+                } catch (emailErr) {
+                    console.error('Error sending welcome email:', emailErr);
+                }
+            }
 
             res.status(201).json({
                 status: 'success',
@@ -485,7 +496,8 @@ const userController = {
                         email: account.email,
                         is_active: account.is_active,
                         auto_generated_password: password,
-                        profile: student
+                        profile: student,
+                        personal_email: personal_email || null
                     }
                 }
             });
@@ -501,7 +513,7 @@ const userController = {
         
         try {
             const { id } = req.params;
-            const { email, student_id, first_name, last_name, phone, date_of_birth, address, is_active } = req.body;
+            const { email, student_id, first_name, last_name, phone, date_of_birth, address, is_active, personal_email } = req.body;
 
             const account = await Account.findOne({
                 where: { id, role_id: 3 },
@@ -537,7 +549,8 @@ const userController = {
                 last_name: last_name || account.student.last_name,
                 phone: phone || account.student.phone,
                 date_of_birth: date_of_birth || account.student.date_of_birth,
-                address: address || account.student.address
+                address: address || account.student.address,
+                personal_email: personal_email || account.student.personal_email
             }, { transaction });
 
             await transaction.commit();

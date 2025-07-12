@@ -22,6 +22,68 @@ const startServer = async () => {
             console.log(`🌐 Health check: http://localhost:${PORT}/health`);
         });
 
+        const { Server } = require('socket.io');
+        const jwt = require('jsonwebtoken');
+        const jwtConfig = require('./src/config/jwt');
+        const { Account, ClassChatMessage } = require('./src/models');
+
+        const io = new Server(server, {
+            cors: {
+                origin: ['http://localhost:3000', 'http://localhost:5173'],
+                methods: ['GET', 'POST']
+            }
+        });
+
+        const chatNamespace = io.of('/class-chat');
+
+        // Middleware auth for socket
+        chatNamespace.use(async (socket, next) => {
+            try {
+                const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+                if (!token) return next(new Error('Authentication token missing'));
+                const payload = jwt.verify(token.replace('Bearer ', ''), jwtConfig.secret);
+                const account = await Account.findByPk(payload.id);
+                if (!account) return next(new Error('Account not found'));
+                socket.user = { id: account.id, email: account.email };
+                next();
+            } catch (err) {
+                next(new Error('Authentication error'));
+            }
+        });
+
+        chatNamespace.on('connection', (socket) => {
+            // client emits joinRoom with classId
+            socket.on('joinRoom', (classId) => {
+                if (!classId) return;
+                socket.join(`class-${classId}`);
+            });
+
+            socket.on('message', async ({ classId, content }) => {
+                if (!classId || !content || !content.trim()) return;
+                try {
+                    const msg = await ClassChatMessage.create({
+                        course_section_id: classId,
+                        sender_id: socket.user.id,
+                        content
+                    });
+
+                    const { Student } = require('./src/models');
+                    const stu = await Student.findOne({ where: { account_id: socket.user.id } });
+                    chatNamespace.to(`class-${classId}`).emit('message', {
+                        id: msg.id,
+                        course_section_id: classId,
+                        sender_id: socket.user.id,
+                        sender_student_id: stu ? stu.student_id : null,
+                        sender_email: socket.user.email,
+                        content,
+                        created_at: msg.created_at
+                    });
+                } catch (e) {
+                    console.error('Socket message error', e);
+                }
+            });
+        });
+
         const gracefulShutdown = (signal) => {
             console.log(`\n${signal} received. Starting graceful shutdown...`);
             

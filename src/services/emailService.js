@@ -1,31 +1,42 @@
     
 const nodemailer = require('nodemailer');
 
-const createTransporter = () => {   
-    return nodemailer.createTransporter({
+const createTransporter = () => {
+    // Ensure we call correct Nodemailer API
+    const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'localhost',
-        port: process.env.SMTP_PORT || 587,
+        port: parseInt(process.env.SMTP_PORT, 10) || 587,
         secure: process.env.SMTP_SECURE === 'true',
-        auth: {
+        auth: process.env.SMTP_USER ? {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS
-        }
+        } : undefined
     });
+
+    return transporter;
 };
 
 const emailService = {
-    sendWelcomeEmail: async (email, name) => {
+    sendWelcomeEmail: async (email, name, loginEmail, tempPassword) => {
         try {
             const transporter = createTransporter();
             
             const mailOptions = {
                 from: process.env.FROM_EMAIL || 'noreply@gmail.com',
                 to: email,
-                subject: 'Welcome to LMS',
+                subject: 'Thông tin tài khoản hệ thống LMS',
                 html: `
-                    <h1>Welcome ${name}!</h1>
-                    <p>Your account has been created successfully.</p>
-                    <p>You can now log in to the Learning Management System.</p>
+                    <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+                        <h2>Xin chào ${name},</h2>
+                        <p>Tài khoản của bạn trên hệ thống <strong>LMS</strong> đã được tạo thành công.</p>
+                        <p><strong>Thông tin đăng nhập:</strong></p>
+                        <ul>
+                            <li>Email đăng nhập: <strong>${loginEmail}</strong></li>
+                            <li>Mật khẩu: <strong>${tempPassword}</strong></li>
+                        </ul>
+                        <p>Vui lòng đăng nhập và đổi mật khẩu ngay trong lần sử dụng đầu tiên để đảm bảo an toàn.</p>
+                        <p>Trân trọng,<br/>Đội ngũ LMS</p>
+                    </div>
                 `
             };
 
