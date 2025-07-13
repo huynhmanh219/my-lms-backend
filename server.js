@@ -9,17 +9,14 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const startServer = async () => {
     try {
         await sequelize.authenticate();
-        console.log('✅ Database connection established successfully');
 
         if (NODE_ENV === 'development') {
-            // await sequelize.sync({ force: false });
             console.log('📊 Database synchronized');
         }
 
         const server = app.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📍 Environment: ${NODE_ENV}`);
-            console.log(`🌐 Health check: http://localhost:${PORT}/health`);
         });
 
         const { Server } = require('socket.io');
@@ -36,7 +33,6 @@ const startServer = async () => {
 
         const chatNamespace = io.of('/class-chat');
 
-        // Middleware auth for socket
         chatNamespace.use(async (socket, next) => {
             try {
                 const token = socket.handshake.auth?.token || socket.handshake.query?.token;
@@ -52,7 +48,6 @@ const startServer = async () => {
         });
 
         chatNamespace.on('connection', (socket) => {
-            // client emits joinRoom with classId
             socket.on('joinRoom', (classId) => {
                 if (!classId) return;
                 socket.join(`class-${classId}`);

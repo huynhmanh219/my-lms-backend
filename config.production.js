@@ -1,13 +1,11 @@
 
 const config = {
-  // Server Configuration
   server: {
     port: process.env.PORT || 3000,
     env: process.env.NODE_ENV || 'production',
     logLevel: process.env.LOG_LEVEL || 'info'
   },
 
-  // Database Configuration
   database: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT) || 3306,
@@ -24,7 +22,6 @@ const config = {
     }
   },
 
-  // Redis Configuration
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT) || 6379,
@@ -34,7 +31,6 @@ const config = {
     maxMemoryPolicy: 'allkeys-lru'
   },
 
-  // JWT Configuration
   jwt: {
     secret: process.env.JWT_SECRET || 'your-super-secure-jwt-secret',
     refreshSecret: process.env.JWT_REFRESH_SECRET || 'your-super-secure-refresh-secret',
@@ -42,7 +38,6 @@ const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRE_TIME || '7d'
   },
 
-  // Email Configuration
   email: {
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.EMAIL_PORT) || 587,
@@ -55,14 +50,12 @@ const config = {
     }
   },
 
-  // File Upload Configuration
   upload: {
     path: process.env.UPLOAD_PATH || './uploads',
     maxSize: parseInt(process.env.MAX_FILE_SIZE) || 52428800, // 50MB
     allowedTypes: (process.env.ALLOWED_FILE_TYPES || 'pdf,doc,docx,ppt,pptx,txt,jpg,jpeg,png,gif').split(',')
   },
 
-  // Security Configuration
   security: {
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS) || 12,
     corsOrigins: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['http://localhost:3000'],
@@ -74,7 +67,6 @@ const config = {
     }
   },
 
-  // Performance Configuration
   performance: {
     compression: {
       enabled: process.env.ENABLE_COMPRESSION !== 'false',
@@ -91,7 +83,6 @@ const config = {
     }
   },
 
-  // Monitoring Configuration
   monitoring: {
     enableHealthChecks: process.env.ENABLE_HEALTH_CHECKS !== 'false',
     enableMetrics: process.env.ENABLE_METRICS !== 'false',
@@ -102,37 +93,26 @@ const config = {
     }
   },
 
-  // Feature Flags
   features: {
     apiDocs: process.env.ENABLE_API_DOCS === 'true',
     swaggerUI: process.env.ENABLE_SWAGGER_UI === 'true',
     debugLogging: process.env.DEV_ENABLE_DEBUG_LOGGING === 'true'
   },
 
-  // SSL Configuration
   ssl: {
     enabled: process.env.FORCE_HTTPS === 'true',
     certPath: process.env.SSL_CERT_PATH || null,
     keyPath: process.env.SSL_KEY_PATH || null
   },
 
-  // Third-party Integrations
   integrations: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || null,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || null
     },
-    microsoft: {
-      clientId: process.env.MICROSOFT_CLIENT_ID || null,
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET || null
-    },
-    analytics: {
-      googleAnalyticsId: process.env.GOOGLE_ANALYTICS_ID || null
-    }
   }
 };
 
-// Validation function to check required configuration
 function validateConfig() {
   const required = [
     'JWT_SECRET',

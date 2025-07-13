@@ -2,7 +2,6 @@
 const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
-    // Ensure we call correct Nodemailer API
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'localhost',
         port: parseInt(process.env.SMTP_PORT, 10) || 587,
