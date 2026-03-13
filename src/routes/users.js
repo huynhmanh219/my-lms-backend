@@ -8,7 +8,7 @@ const { userSchemas, commonSchemas } = require('../middleware/validation');
 const { uploadLimiter } = require('../middleware/rateLimiter');
 const upload = require('../config/multer');
 
-// GET /users/profile 
+// GET /users/profile  
 router.get('/profile',
     auth,
     userController.getCurrentUserProfile
