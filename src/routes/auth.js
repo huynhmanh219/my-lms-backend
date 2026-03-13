@@ -14,7 +14,7 @@ router.post('/login',
     validate(authSchemas.login),
     authController.login
 );
-
+ 
 // POST /auth/logout
 router.post('/logout', 
     auth,
