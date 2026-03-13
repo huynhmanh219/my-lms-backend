@@ -1,0 +1,24 @@
+name: Deploy to EC2
+
+on: 
+  push: 
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: 3.106.140.57
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY}}
+
+          script: 
+            cd /home/ec2-user/my-lms-backend
+            git pull
+            npm install
+            pm2 restart all 

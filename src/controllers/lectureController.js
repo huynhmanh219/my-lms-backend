@@ -1,5 +1,5 @@
 
-const { Lecture, Chapter, Subject, LearningMaterial, Lecturer, sequelize } = require('../models');
+const { Lecture, Chapter, Subject, LearningMaterial, Lecturer, StudentCourseSection, CourseSection, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { getPagination, getPagingData } = require('../services/paginationService');
 
@@ -202,6 +202,57 @@ const lectureController = {
                 }
             }
 
+            /*
+             * BUSINESS RULE: A lecture that belongs to a subject currently being taught (i.e. at least one
+             * CourseSection of that subject already has enrolled students) must NOT be edited or deleted.
+             * This preserves the learning experience and reporting data of ongoing classes.
+             */
+
+            // 1. Determine subject_id of the lecture via its chapter
+            const lectureChapter = await Chapter.findByPk(lecture.chapter_id);
+            let preventModification = false;
+
+            if (lectureChapter) {
+                const subjectId = lectureChapter.subject_id;
+
+                // 2. Find all course sections of that subject
+                const sections = await CourseSection.findAll({
+                    attributes: ['id'],
+                    where: { subject_id: subjectId }
+                });
+
+                const sectionIds = sections.map(sec => sec.id);
+
+                if (sectionIds.length > 0) {
+                    // 3. Count students enrolled in those sections
+                    const enrolledCount = await StudentCourseSection.count({
+                        where: { course_section_id: { [Op.in]: sectionIds } }
+                    });
+
+                    preventModification = enrolledCount > 0;
+                }
+            }
+
+            if (preventModification) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Không thể chỉnh sửa bài giảng vì đang có sinh viên theo học trong các lớp học phần liên quan.'
+                });
+            }
+
+            // KHÔNG cho phép chỉnh sửa nếu bài giảng đã được xuất bản, trừ khi yêu cầu này chỉ để GỠ xuất bản (is_published=false)
+
+            const isCurrentlyPublished = lecture.is_published === true;
+
+            const isOnlyUnpublishRequest = isCurrentlyPublished && is_published === false && !title && content === undefined && video_url === undefined && duration_minutes === undefined && order_index === undefined && !chapter_id;
+
+            if (isCurrentlyPublished && !isOnlyUnpublishRequest) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Bài giảng đã được xuất bản nên không thể chỉnh sửa. Vui lòng gỡ xuất bản trước khi thay đổi.'
+                });
+            }
+
             await lecture.update({
                 chapter_id: chapter_id || lecture.chapter_id,
                 title: title || lecture.title,
@@ -242,6 +293,43 @@ const lectureController = {
                 return res.status(404).json({
                     success: false,
                     message: 'Lecture not found'
+                });
+            }
+
+            /*
+             * BUSINESS RULE: Disallow deletion if any student is enrolled in a class section
+             * that teaches the subject this lecture belongs to.
+             */
+
+            const chapterOfLecture = await Chapter.findByPk(lecture.chapter_id);
+            if (chapterOfLecture) {
+                const subjectId = chapterOfLecture.subject_id;
+
+                const sections = await CourseSection.findAll({
+                    attributes: ['id'],
+                    where: { subject_id: subjectId }
+                });
+
+                const sectionIds = sections.map(sec => sec.id);
+                if (sectionIds.length > 0) {
+                    const enrolledCount = await StudentCourseSection.count({
+                        where: { course_section_id: { [Op.in]: sectionIds } }
+                    });
+
+                    if (enrolledCount > 0) {
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Không thể xoá bài giảng vì đang có sinh viên theo học trong các lớp học phần liên quan.'
+                        });
+                    }
+                }
+            }
+
+            // Nếu bài giảng đã xuất bản thì không cho xoá
+            if (lecture.is_published) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Không thể xoá bài giảng đã xuất bản. Vui lòng gỡ xuất bản trước khi xoá.'
                 });
             }
 
